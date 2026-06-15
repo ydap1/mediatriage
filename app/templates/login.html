@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FilmTriage — Sign in</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0f0f; --surface: #1a1a1a; --border: #2e2e2e;
+      --text: #e8e8e8; --accent: #e85d04; --radius: 6px;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; font-size: 14px;
+    }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 2.5rem 2rem; width: 320px;
+    }
+    h1 { font-size: 1.3rem; margin-bottom: 1.5rem; }
+    h1 span { color: var(--accent); }
+    label { display: block; margin-bottom: .4rem; color: #aaa; font-size: 13px; }
+    input[type="password"] {
+      width: 100%; background: #242424; border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text);
+      padding: .5rem .75rem; font-size: 14px; outline: none;
+    }
+    input[type="password"]:focus { border-color: var(--accent); }
+    button {
+      width: 100%; margin-top: 1rem; padding: .55rem;
+      background: var(--accent); border: none; border-radius: var(--radius);
+      color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    button:hover { background: #f48c06; }
+    .error { color: #e45; font-size: 13px; margin-top: .75rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Film<span>Triage</span></h1>
+    <form method="post" action="/login">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autofocus required>
+      <button type="submit">Sign in</button>
+      {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    </form>
+  </div>
+</body>
+</html>

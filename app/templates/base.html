@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}FilmTriage{% endblock %}</title>
+  <script src="https://unpkg.com/htmx.org@2.0.3/dist/htmx.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface2: #242424;
+      --border: #2e2e2e;
+      --text: #e8e8e8;
+      --text-muted: #888;
+      --accent: #e85d04;
+      --accent-hover: #f48c06;
+      --watched: #2d6a4f;
+      --pending: #4a4a1a;
+      --failed: #4a1a1a;
+      --radius: 6px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-hover); }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 52px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo { font-size: 1.1rem; font-weight: 700; letter-spacing: -.02em; color: var(--text); }
+    .logo span { color: var(--accent); }
+
+    nav { display: flex; align-items: center; gap: 1rem; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .35rem .75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 13px;
+      transition: background .15s, border-color .15s;
+    }
+    .btn:hover { background: var(--border); border-color: #3e3e3e; }
+    .btn-accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn-sm { padding: .2rem .5rem; font-size: 12px; }
+
+    input[type="text"], input[type="password"], input[type="search"] {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: .4rem .7rem;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus { border-color: var(--accent); }
+
+    select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: .35rem .6rem;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    main { max-width: 1280px; margin: 0 auto; padding: 1.5rem; }
+
+    .htmx-indicator { opacity: 0; transition: opacity .2s; }
+    .htmx-request .htmx-indicator { opacity: 1; }
+    .htmx-request.htmx-indicator { opacity: 1; }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header>
+    <a href="/" class="logo">Film<span>Triage</span></a>
+    <nav>
+      <form method="post" action="/logout">
+        <button class="btn btn-sm" type="submit">Sign out</button>
+      </form>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <script>
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') document.getElementById('detail-modal').innerHTML = '';
+    });
+  </script>
+  <footer>
+    <a href="https://www.themoviedb.org" target="_blank" rel="noopener">
+      <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg"
+           alt="Movie and TV data provided by TMDb" height="12">
+    </a>
+  </footer>
+</body>
+</html>

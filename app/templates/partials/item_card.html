@@ -1,0 +1,67 @@
+<div class="item-card item-{{ item.status }}" id="item-{{ item.id }}"
+  {% if item.status == 'pending' %}
+    hx-get="/items/{{ item.id }}/status"
+    hx-trigger="every 2s"
+    hx-target="#item-{{ item.id }}"
+    hx-swap="outerHTML"
+    hx-on::before-request="if((this._p=(this._p||0)+1)>15){htmx.trigger(this,'htmx:abort'); this.querySelector('.badge-pending').textContent='timed out'; return false;}"
+  {% endif %}>
+
+  <div class="poster-wrap"
+    hx-get="/items/{{ item.id }}/detail"
+    hx-target="#detail-modal"
+    hx-swap="innerHTML"
+    hx-trigger="click[!event.target.closest('button')]"
+    style="cursor:pointer">
+    {% if item.poster_path %}
+      <img src="{{ image_base }}{{ item.poster_path }}" alt="{{ item.title }}" loading="lazy">
+    {% elif item.og_image %}
+      <img src="{{ item.og_image }}" alt="{{ item.title }}" loading="lazy">
+    {% else %}
+      <div class="poster-placeholder">{{ item.title }}</div>
+    {% endif %}
+
+    <div class="card-overlay">
+      {% if item.status not in ('pending', 'failed') %}
+        <button class="btn btn-sm"
+          hx-post="/items/{{ item.id }}/toggle-watched"
+          hx-target="#item-{{ item.id }}"
+          hx-swap="outerHTML">
+          {% if item.status == 'watched' %}Unwatch{% else %}Watched{% endif %}
+        </button>
+      {% endif %}
+      <button class="btn btn-sm btn-danger"
+        hx-delete="/items/{{ item.id }}"
+        hx-target="#item-{{ item.id }}"
+        hx-swap="outerHTML"
+        hx-confirm="Remove '{{ item.title }}'?">
+        Delete
+      </button>
+    </div>
+  </div>
+
+  <div class="card-body"
+    hx-get="/items/{{ item.id }}/detail"
+    hx-target="#detail-modal"
+    hx-swap="innerHTML"
+    hx-trigger="click"
+    style="cursor:pointer">
+    <div class="card-title" title="{{ item.title }}">{{ item.title }}</div>
+    <div class="card-meta">
+      {% if item.release_year %}<span>{{ item.release_year }}</span>{% endif %}
+      {% if item.media_type %}<span class="badge">{{ item.media_type }}</span>{% endif %}
+      {% if item.status == 'pending' %}<span class="badge badge-pending">identifying…</span>{% endif %}
+      {% if item.status == 'failed' %}<span class="badge badge-failed">unidentified</span>{% endif %}
+    </div>
+    {% if item.genres %}
+      <div class="card-genres">
+        {% for g in item.genres[:3] %}<span class="genre-tag">{{ g }}</span>{% endfor %}
+      </div>
+    {% endif %}
+    {% if item.ai_tags %}
+      <div class="card-genres">
+        {% for t in item.ai_tags[:3] %}<span class="genre-tag ai-tag">{{ t }}</span>{% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</div>
