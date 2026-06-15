@@ -18,7 +18,7 @@ def make_session_cookie(response, value: str = "authenticated") -> None:
         max_age=settings.session_max_age,
         httponly=True,
         samesite="lax",
-        secure=False,  # set True behind HTTPS proxy; proxy terminates TLS
+        secure=settings.cookie_secure,
     )
 
 

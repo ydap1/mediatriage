@@ -85,6 +85,7 @@ async def login_page(request: Request):
 
 
 @app.post("/login")
+@limiter.limit(settings.login_rate_limit)
 async def login(request: Request, password: Annotated[str, Form()]):
     if password != settings.app_password:
         return templates.TemplateResponse(

@@ -35,6 +35,12 @@ class Settings:
     max_adds_per_hour: int = field(
         default_factory=lambda: int(os.environ.get("MAX_ADDS_PER_HOUR", "20"))
     )
+    cookie_secure: bool = field(
+        default_factory=lambda: os.environ.get("COOKIE_SECURE", "false").lower() == "true"
+    )
+    login_rate_limit: str = field(
+        default_factory=lambda: os.environ.get("LOGIN_RATE_LIMIT", "10/minute")
+    )
 
 
 settings = Settings()
