@@ -110,6 +110,10 @@ def _is_url(value: str) -> bool:
     return value.startswith("http://") or value.startswith("https://")
 
 
+def _is_fast_mode(request: Request) -> bool:
+    return request.cookies.get("mt_fast") == "1"
+
+
 def _empty_filters():
     return {"status": "", "media_type": "", "genre": "", "q": ""}
 
@@ -120,6 +124,17 @@ async def _render_grid(request: Request, section: str) -> HTMLResponse:
         all_genres = get_all_genres(conn, section=section)
     ctx = _grid_ctx(request, items, total, 1, all_genres, _empty_filters(), "date_added", section)
     response = templates.TemplateResponse("partials/item_grid.html", ctx)
+    response.headers["HX-Retarget"] = "#grid-container"
+    response.headers["HX-Reswap"] = "innerHTML"
+    return response
+
+
+def _search_result_response(request: Request, candidates: list, query: str, section: str) -> HTMLResponse:
+    response = templates.TemplateResponse(
+        "partials/search_results.html",
+        {"request": request, "candidates": candidates, "query": query,
+         "section": section, "image_base": settings.tmdb_image_base},
+    )
     response.headers["HX-Retarget"] = "#grid-container"
     response.headers["HX-Reswap"] = "innerHTML"
     return response
@@ -150,6 +165,7 @@ async def film_library(
         )
         all_genres = get_all_genres(conn, section=section)
     ctx = _grid_ctx(request, items, total, page, all_genres, filters, sort_by, section)
+    ctx["fast_mode"] = _is_fast_mode(request)
     if request.headers.get("HX-Request"):
         return templates.TemplateResponse("partials/item_grid.html", ctx)
     return templates.TemplateResponse("library.html", ctx)
@@ -169,6 +185,10 @@ async def add_film(request: Request, background_tasks: BackgroundTasks, input: A
         og_image = scraped.get("og_image")
     else:
         raw_title = input
+
+    if not _is_fast_mode(request):
+        candidates = await tmdb.search_multi(raw_title)
+        return _search_result_response(request, candidates, input, "film")
 
     match = await tmdb.search(raw_title)
     if match:
@@ -207,6 +227,7 @@ async def books_library(
         )
         all_genres = get_all_genres(conn, section=section)
     ctx = _grid_ctx(request, items, total, page, all_genres, filters, sort_by, section)
+    ctx["fast_mode"] = _is_fast_mode(request)
     if request.headers.get("HX-Request"):
         return templates.TemplateResponse("partials/item_grid.html", ctx)
     return templates.TemplateResponse("library.html", ctx)
@@ -227,6 +248,10 @@ async def add_book(request: Request, background_tasks: BackgroundTasks, input: A
     else:
         raw_title = input
 
+    if not _is_fast_mode(request):
+        candidates = await openlibrary.search_multi(raw_title)
+        return _search_result_response(request, candidates, input, "book")
+
     match = await openlibrary.search(raw_title)
     if match:
         ai_tags = await _ai_tags(match["title"], match.get("overview", ""), match.get("genres", []))
@@ -242,6 +267,70 @@ async def add_book(request: Request, background_tasks: BackgroundTasks, input: A
         background_tasks.add_task(enrich_item, item_id, raw_title, og_image, "book")
 
     return await _render_grid(request, "book")
+
+
+# ── Confirm selection & fast-mode toggle ─────────────────────────────────────
+
+@app.post("/confirm", response_class=HTMLResponse)
+async def confirm_item(
+    request: Request,
+    section: Annotated[str, Form()] = "film",
+    title: Annotated[str, Form()] = "",
+    tmdb_id: Annotated[str, Form()] = "",
+    media_type: Annotated[str, Form()] = "",
+    ol_key: Annotated[str, Form()] = "",
+    poster_path: Annotated[str, Form()] = "",
+    release_year: Annotated[str, Form()] = "",
+    genres: Annotated[str, Form()] = "",
+    authors: Annotated[str, Form()] = "",
+    overview: Annotated[str, Form()] = "",
+):
+    genre_list = [g.strip() for g in genres.split(",") if g.strip()]
+    author_list = [a.strip() for a in authors.split(",") if a.strip()]
+    year = int(release_year) if release_year.isdigit() else None
+
+    data: dict = {
+        "title": title,
+        "section": section,
+        "status": "to_watch",
+        "poster_path": poster_path or None,
+        "release_year": year,
+        "genres": genre_list,
+        "overview": overview or None,
+    }
+    if section == "book":
+        data["ol_key"] = ol_key or None
+        data["authors"] = author_list
+        data["media_type"] = "book"
+        # Fetch description if not passed (search_multi doesn't include it)
+        if not overview and ol_key:
+            data["overview"] = await openlibrary.fetch_description(ol_key)
+    else:
+        data["tmdb_id"] = int(tmdb_id) if tmdb_id.isdigit() else None
+        data["media_type"] = media_type or "movie"
+
+    with get_db() as conn:
+        upsert_item(conn, data)
+
+    return await _render_grid(request, section)
+
+
+@app.post("/fast-mode", response_class=HTMLResponse)
+async def toggle_fast_mode(request: Request):
+    new_fast = not _is_fast_mode(request)
+    label = "⚡ Fast" if new_fast else "Select"
+    cls = "btn btn-sm btn-accent" if new_fast else "btn btn-sm"
+    html = (
+        f'<button id="fast-toggle" class="{cls}" '
+        f'hx-post="/fast-mode" hx-target="#fast-toggle" hx-swap="outerHTML">'
+        f'{label}</button>'
+    )
+    response = HTMLResponse(html)
+    if new_fast:
+        response.set_cookie("mt_fast", "1", max_age=365 * 86400, httponly=True, samesite="lax")
+    else:
+        response.delete_cookie("mt_fast")
+    return response
 
 
 # ── Item detail ───────────────────────────────────────────────────────────────
