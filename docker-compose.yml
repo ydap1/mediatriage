@@ -1,0 +1,10 @@
+services:
+  app:
+    build:
+      context: https://github.com/ydap1/filmtriage.git
+    expose:
+      - "5543"
+    volumes:
+      - ./data:/data
+    env_file: .env
+    restart: unless-stopped
