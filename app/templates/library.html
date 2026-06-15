@@ -329,29 +329,7 @@
 </div>
 
 <div id="grid-container">
-  <div class="item-grid" id="item-grid">
-    {% for item in items %}
-      {% include "partials/item_card.html" %}
-    {% else %}
-      <p class="empty-state">Nothing here yet. Add something above.</p>
-    {% endfor %}
-  </div>
-
-  {% if total_pages > 1 %}
-  <div class="pagination">
-    {% if page > 1 %}
-      <button class="btn"
-        hx-get="{{ base_url }}?page={{ page-1 }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}&sort_by={{ sort_by }}"
-        hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true">Previous</button>
-    {% endif %}
-    <span class="page-info">{{ page }} / {{ total_pages }}</span>
-    {% if page < total_pages %}
-      <button class="btn"
-        hx-get="{{ base_url }}?page={{ page+1 }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}&sort_by={{ sort_by }}"
-        hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true">Next</button>
-    {% endif %}
-  </div>
-  {% endif %}
+  {% include "partials/item_grid.html" %}
 </div>
 
 <div id="detail-modal" onclick="if(event.target===this)this.innerHTML=''"></div>
