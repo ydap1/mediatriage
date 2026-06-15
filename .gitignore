@@ -1,4 +1,5 @@
 .env
+.claude/
 data/
 .venv/
 __pycache__/
