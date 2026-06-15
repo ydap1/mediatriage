@@ -1,0 +1,75 @@
+<div class="detail-card">
+  <button class="detail-close" onclick="document.getElementById('detail-modal').innerHTML=''">✕</button>
+
+  <div class="detail-poster">
+    {% if details.poster_path %}
+      <img src="{{ image_base | replace('w342', 'w500') }}{{ details.poster_path }}" alt="{{ details.title }}">
+    {% elif item.og_image %}
+      <img src="{{ item.og_image }}" alt="{{ details.title }}">
+    {% else %}
+      <div class="poster-placeholder" style="height:100%;min-height:300px">{{ details.title }}</div>
+    {% endif %}
+  </div>
+
+  <div class="detail-body">
+    <div class="detail-header">
+      <h2 class="detail-title">{{ details.title }}</h2>
+      {% if details.tagline %}<p class="detail-tagline">{{ details.tagline }}</p>{% endif %}
+    </div>
+
+    <div class="detail-meta">
+      {% if details.release_year %}<span>{{ details.release_year }}</span>{% endif %}
+      {% if details.media_type %}<span class="badge">{{ details.media_type }}</span>{% endif %}
+      {% if details.vote_average %}<span class="rating">★ {{ details.vote_average }}</span>{% endif %}
+      {% if details.runtime %}<span>{{ details.runtime }} min</span>{% endif %}
+      {% if details.seasons %}<span>{{ details.seasons }} season{{ 's' if details.seasons != 1 }}</span>{% endif %}
+      {% if details.episodes %}<span>{{ details.episodes }} ep</span>{% endif %}
+    </div>
+
+    {% if details.genres %}
+    <div class="detail-genres">
+      {% for g in details.genres %}<span class="genre-tag">{{ g }}</span>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="detail-links">
+      <a href="https://www.themoviedb.org/{{ details.media_type }}/{{ details.tmdb_id }}" target="_blank" rel="noopener" class="detail-link">TMDb</a>
+      {% if details.imdb_id %}
+      <a href="https://www.imdb.com/title/{{ details.imdb_id }}/" target="_blank" rel="noopener" class="detail-link">IMDb</a>
+      {% endif %}
+      {% if details.media_type == 'movie' %}
+      <a href="https://letterboxd.com/tmdb/{{ details.tmdb_id }}/" target="_blank" rel="noopener" class="detail-link">Letterboxd</a>
+      {% endif %}
+    </div>
+
+    {% if details.directors %}
+    <div class="detail-row">
+      <span class="detail-label">{{ 'Created by' if details.media_type == 'tv' else 'Director' }}</span>
+      <span>{{ details.directors | join(', ') }}</span>
+    </div>
+    {% endif %}
+
+    {% if details.overview %}
+    <p class="detail-overview">{{ details.overview }}</p>
+    {% endif %}
+
+    {% if details.cast %}
+    <div class="detail-cast">
+      <h3>Cast</h3>
+      <div class="cast-list">
+        {% for actor in details.cast %}
+        <div class="cast-item">
+          {% if actor.profile_path %}
+            <img src="https://image.tmdb.org/t/p/w92{{ actor.profile_path }}" alt="{{ actor.name }}" loading="lazy">
+          {% else %}
+            <div class="cast-placeholder"></div>
+          {% endif %}
+          <div class="cast-name">{{ actor.name }}</div>
+          {% if actor.character %}<div class="cast-char">{{ actor.character }}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
