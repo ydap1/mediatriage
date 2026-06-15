@@ -1,16 +1,21 @@
 {% extends "base.html" %}
 
+{% set is_book = section == 'book' %}
+{% set add_url = '/books/add' if is_book else '/add' %}
+{% set base_url = '/books/' if is_book else '/' %}
+{% set export_section = 'book' if is_book else 'film' %}
+
 {% block head %}
 <style>
+  .add-bar { display: flex; gap: .5rem; margin-bottom: 1rem; }
+  .add-bar input { flex: 1; }
+
   .toolbar {
     display: flex; flex-wrap: wrap; gap: .5rem;
     margin-bottom: 1.25rem; align-items: center;
   }
   .toolbar-left  { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; flex: 1; }
   .toolbar-right { display: flex; gap: .5rem; align-items: center; }
-
-  .add-bar { display: flex; gap: .5rem; margin-bottom: 1rem; }
-  .add-bar input { flex: 1; }
 
   .item-grid {
     display: grid;
@@ -19,10 +24,8 @@
   }
 
   .item-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
     transition: border-color .15s;
   }
   .item-card:hover { border-color: #444; }
@@ -99,21 +102,16 @@
     background:rgba(0,0,0,.85);
     z-index:200;
     display:flex; align-items:center; justify-content:center;
-    padding:1rem;
-    overflow-y:auto;
+    padding:1rem; overflow-y:auto;
   }
   #detail-modal:empty { display:none; }
 
   .detail-card {
     position:relative;
-    background:var(--surface);
-    border:1px solid var(--border);
-    border-radius:10px;
-    width:100%; max-width:720px;
-    display:grid;
-    grid-template-columns: 200px 1fr;
-    overflow:hidden;
-    max-height:90vh;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; width:100%; max-width:720px;
+    display:grid; grid-template-columns:200px 1fr;
+    overflow:hidden; max-height:90vh;
   }
   .detail-close {
     position:absolute; top:.6rem; right:.6rem; z-index:10;
@@ -146,10 +144,7 @@
   .detail-label { color:var(--text-muted); margin-right:.4rem; }
   .detail-overview { font-size:13px; line-height:1.6; color:#ccc; }
   .detail-cast h3 { font-size:13px; color:var(--text-muted); margin-bottom:.5rem; text-transform:uppercase; letter-spacing:.06em; }
-  .cast-list {
-    display:flex; gap:.75rem; overflow-x:auto;
-    padding-bottom:.25rem;
-  }
+  .cast-list { display:flex; gap:.75rem; overflow-x:auto; padding-bottom:.25rem; }
   .cast-item { flex:0 0 72px; text-align:center; }
   .cast-item img, .cast-placeholder {
     width:60px; height:60px; border-radius:50%; object-fit:cover;
@@ -158,59 +153,63 @@
   .cast-name { font-size:11px; font-weight:600; line-height:1.3; }
   .cast-char { font-size:10px; color:var(--text-muted); line-height:1.3; }
 
-  @media (max-width: 560px) {
-    .detail-card { grid-template-columns: 1fr; }
-    .detail-poster { max-height: 240px; }
+  @media (max-width:560px) {
+    .detail-card { grid-template-columns:1fr; }
+    .detail-poster { max-height:240px; }
   }
 </style>
 {% endblock %}
 
 {% block content %}
 <form class="add-bar"
-  hx-post="/add"
+  hx-post="{{ add_url }}"
   hx-target="#grid-container"
   hx-swap="innerHTML"
   hx-on::after-request="this.reset()">
-  <input type="text" name="input" placeholder="Title, description, or URL…" required autofocus>
-  <button class="btn btn-accent" type="submit">Add</button>
+  <input type="text" name="input"
+    placeholder="{{ 'Title, author, or description…' if is_book else 'Title, description, or URL…' }}"
+    required autofocus>
+  <button class="btn {{ 'btn-accent-book' if is_book else 'btn-accent' }}" type="submit">Add</button>
 </form>
 
 <div class="toolbar">
   <div class="toolbar-left">
-    <select hx-get="/" hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true"
+    <select hx-get="{{ base_url }}" hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true"
             name="status" hx-include="[name='media_type'],[name='genre'],[name='q'],[name='sort_by']">
       <option value=""         {% if not filters.status %}selected{% endif %}>All statuses</option>
-      <option value="to_watch" {% if filters.status=='to_watch' %}selected{% endif %}>To watch</option>
-      <option value="watched"  {% if filters.status=='watched'  %}selected{% endif %}>Watched</option>
+      <option value="to_watch" {% if filters.status=='to_watch' %}selected{% endif %}>{{ 'To read' if is_book else 'To watch' }}</option>
+      <option value="watched"  {% if filters.status=='watched'  %}selected{% endif %}>{{ 'Read' if is_book else 'Watched' }}</option>
     </select>
 
-    <select hx-get="/" hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true"
+    {% if not is_book %}
+    <select hx-get="{{ base_url }}" hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true"
             name="media_type" hx-include="[name='status'],[name='genre'],[name='q'],[name='sort_by']">
       <option value=""      {% if not filters.media_type %}selected{% endif %}>All types</option>
       <option value="movie" {% if filters.media_type=='movie' %}selected{% endif %}>Movies</option>
       <option value="tv"    {% if filters.media_type=='tv'    %}selected{% endif %}>TV</option>
     </select>
+    {% endif %}
 
     {% if all_genres %}
-    <select hx-get="/" hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true"
+    <select hx-get="{{ base_url }}" hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true"
             name="genre" hx-include="[name='status'],[name='media_type'],[name='q'],[name='sort_by']">
-      <option value="" {% if not filters.genre %}selected{% endif %}>All genres</option>
+      <option value="" {% if not filters.genre %}selected{% endif %}>All {{ 'subjects' if is_book else 'genres' }}</option>
       {% for g in all_genres %}
       <option value="{{ g }}" {% if filters.genre==g %}selected{% endif %}>{{ g }}</option>
       {% endfor %}
     </select>
     {% endif %}
 
-    <select hx-get="/" hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true"
+    <select hx-get="{{ base_url }}" hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true"
             name="sort_by" hx-include="[name='status'],[name='media_type'],[name='genre'],[name='q']">
       <option value="date_added"   {% if sort_by=='date_added'   %}selected{% endif %}>Date added</option>
       <option value="title"        {% if sort_by=='title'        %}selected{% endif %}>Title A–Z</option>
-      <option value="release_year" {% if sort_by=='release_year' %}selected{% endif %}>Release year</option>
+      <option value="release_year" {% if sort_by=='release_year' %}selected{% endif %}>{{ 'Publish year' if is_book else 'Release year' }}</option>
       <option value="status"       {% if sort_by=='status'       %}selected{% endif %}>Status</option>
     </select>
 
     <input type="search" name="q" placeholder="Search…" value="{{ filters.q }}"
-      hx-get="/" hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true"
+      hx-get="{{ base_url }}" hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true"
       hx-trigger="input changed delay:300ms, search"
       hx-include="[name='status'],[name='media_type'],[name='genre'],[name='sort_by']">
 
@@ -218,13 +217,12 @@
   </div>
 
   <div class="toolbar-right">
-    <a class="btn btn-sm" href="/export?format=csv&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}">CSV</a>
-    <a class="btn btn-sm" href="/export?format=json&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}">JSON</a>
+    <a class="btn btn-sm" href="/export?format=csv&section={{ export_section }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}">CSV</a>
+    <a class="btn btn-sm" href="/export?format=json&section={{ export_section }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}">JSON</a>
     <button class="btn btn-sm btn-danger"
-      hx-delete="/items"
-      hx-target="#grid-container"
-      hx-swap="innerHTML"
-      hx-confirm="Delete every item in your watchlist? This cannot be undone.">
+      hx-delete="/items?section={{ export_section }}"
+      hx-target="#grid-container" hx-swap="innerHTML"
+      hx-confirm="Delete every item in your {{ 'reading list' if is_book else 'watchlist' }}? This cannot be undone.">
       Delete all
     </button>
   </div>
@@ -243,13 +241,13 @@
   <div class="pagination">
     {% if page > 1 %}
       <button class="btn"
-        hx-get="/?page={{ page-1 }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}&sort_by={{ sort_by }}"
+        hx-get="{{ base_url }}?page={{ page-1 }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}&sort_by={{ sort_by }}"
         hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true">Previous</button>
     {% endif %}
     <span class="page-info">{{ page }} / {{ total_pages }}</span>
     {% if page < total_pages %}
       <button class="btn"
-        hx-get="/?page={{ page+1 }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}&sort_by={{ sort_by }}"
+        hx-get="{{ base_url }}?page={{ page+1 }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}&sort_by={{ sort_by }}"
         hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true">Next</button>
     {% endif %}
   </div>

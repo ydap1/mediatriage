@@ -13,7 +13,9 @@
     hx-swap="innerHTML"
     hx-trigger="click[!event.target.closest('button')]"
     style="cursor:pointer">
-    {% if item.poster_path %}
+    {% if item.media_type == 'book' and item.poster_path %}
+      <img src="{{ item.poster_path }}" alt="{{ item.title }}" loading="lazy">
+    {% elif item.poster_path %}
       <img src="{{ image_base }}{{ item.poster_path }}" alt="{{ item.title }}" loading="lazy">
     {% elif item.og_image %}
       <img src="{{ item.og_image }}" alt="{{ item.title }}" loading="lazy">
@@ -27,7 +29,11 @@
           hx-post="/items/{{ item.id }}/toggle-watched"
           hx-target="#item-{{ item.id }}"
           hx-swap="outerHTML">
-          {% if item.status == 'watched' %}Unwatch{% else %}Watched{% endif %}
+          {% if section == 'book' %}
+            {{ 'Unread' if item.status == 'watched' else 'Mark read' }}
+          {% else %}
+            {{ 'Unwatch' if item.status == 'watched' else 'Watched' }}
+          {% endif %}
         </button>
       {% endif %}
       <button class="btn btn-sm btn-danger"
@@ -49,10 +55,15 @@
     <div class="card-title" title="{{ item.title }}">{{ item.title }}</div>
     <div class="card-meta">
       {% if item.release_year %}<span>{{ item.release_year }}</span>{% endif %}
-      {% if item.media_type %}<span class="badge">{{ item.media_type }}</span>{% endif %}
+      {% if item.media_type and item.media_type != 'book' %}<span class="badge">{{ item.media_type }}</span>{% endif %}
       {% if item.status == 'pending' %}<span class="badge badge-pending">identifying…</span>{% endif %}
       {% if item.status == 'failed' %}<span class="badge badge-failed">unidentified</span>{% endif %}
     </div>
+    {% if item.authors %}
+      <div class="card-genres">
+        {% for a in item.authors[:2] %}<span class="genre-tag">{{ a }}</span>{% endfor %}
+      </div>
+    {% endif %}
     {% if item.genres %}
       <div class="card-genres">
         {% for g in item.genres[:3] %}<span class="genre-tag">{{ g }}</span>{% endfor %}
@@ -60,7 +71,7 @@
     {% endif %}
     {% if item.ai_tags %}
       <div class="card-genres">
-        {% for t in item.ai_tags[:3] %}<span class="genre-tag ai-tag">{{ t }}</span>{% endfor %}
+        {% for t in item.ai_tags[:2] %}<span class="genre-tag ai-tag">{{ t }}</span>{% endfor %}
       </div>
     {% endif %}
   </div>

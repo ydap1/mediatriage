@@ -1,3 +1,6 @@
+{% set is_book = section == 'book' %}
+{% set base_url = '/books/' if is_book else '/' %}
+
 <div class="item-grid" id="item-grid">
   {% for item in items %}
     {% include "partials/item_card.html" %}
@@ -10,13 +13,13 @@
 <div class="pagination">
   {% if page > 1 %}
     <button class="btn"
-      hx-get="/?page={{ page-1 }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}&sort_by={{ sort_by }}"
+      hx-get="{{ base_url }}?page={{ page-1 }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}&sort_by={{ sort_by }}"
       hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true">Previous</button>
   {% endif %}
   <span class="page-info">{{ page }} / {{ total_pages }}</span>
   {% if page < total_pages %}
     <button class="btn"
-      hx-get="/?page={{ page+1 }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}&sort_by={{ sort_by }}"
+      hx-get="{{ base_url }}?page={{ page+1 }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}&sort_by={{ sort_by }}"
       hx-target="#grid-container" hx-swap="innerHTML" hx-push-url="true">Next</button>
   {% endif %}
 </div>

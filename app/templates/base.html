@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}FilmTriage{% endblock %}</title>
+  <title>{% block title %}MediaTriage{% endblock %}</title>
   <script src="https://unpkg.com/htmx.org@2.0.3/dist/htmx.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -17,6 +17,8 @@
       --text-muted: #888;
       --accent: #e85d04;
       --accent-hover: #f48c06;
+      --accent-book: #2d7dd2;
+      --accent-book-hover: #4a9ee8;
       --watched: #2d6a4f;
       --pending: #4a4a1a;
       --failed: #4a1a1a;
@@ -48,8 +50,21 @@
       z-index: 100;
     }
 
+    .header-left { display: flex; align-items: center; gap: 1.5rem; }
     .logo { font-size: 1.1rem; font-weight: 700; letter-spacing: -.02em; color: var(--text); }
     .logo span { color: var(--accent); }
+
+    .nav-tabs { display: flex; gap: 0; }
+    .nav-tab {
+      padding: .35rem .85rem;
+      font-size: 13px; font-weight: 500;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    .nav-tab:hover { color: var(--text); }
+    .nav-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .nav-tab.active-book { color: var(--text); border-bottom-color: var(--accent-book); }
 
     nav { display: flex; align-items: center; gap: 1rem; }
 
@@ -67,6 +82,8 @@
     .btn:hover { background: var(--border); border-color: #3e3e3e; }
     .btn-accent { background: var(--accent); border-color: var(--accent); color: #fff; }
     .btn-accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn-accent-book { background: var(--accent-book); border-color: var(--accent-book); color: #fff; }
+    .btn-accent-book:hover { background: var(--accent-book-hover); border-color: var(--accent-book-hover); }
     .btn-sm { padding: .2rem .5rem; font-size: 12px; }
 
     input[type="text"], input[type="password"], input[type="search"] {
@@ -108,7 +125,13 @@
 </head>
 <body>
   <header>
-    <a href="/" class="logo">Film<span>Triage</span></a>
+    <div class="header-left">
+      <span class="logo">Media<span>Triage</span></span>
+      <nav class="nav-tabs">
+        <a href="/"       class="nav-tab {% if section != 'book' %}active{% endif %}">Film &amp; TV</a>
+        <a href="/books/" class="nav-tab {% if section == 'book' %}active-book{% endif %}">Books</a>
+      </nav>
+    </div>
     <nav>
       <form method="post" action="/logout">
         <button class="btn btn-sm" type="submit">Sign out</button>
@@ -120,7 +143,10 @@
   </main>
   <script>
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') document.getElementById('detail-modal').innerHTML = '';
+      if (e.key === 'Escape') {
+        const m = document.getElementById('detail-modal');
+        if (m) m.innerHTML = '';
+      }
     });
   </script>
   <footer>
