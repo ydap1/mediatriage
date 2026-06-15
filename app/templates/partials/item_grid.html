@@ -1,6 +1,15 @@
 {% set is_book = section == 'book' %}
 {% set base_url = '/books/' if is_book else '/' %}
 
+{% if view_mode == 'list' %}
+<div class="item-list" id="item-grid">
+  {% for item in items %}
+    {% include "partials/item_row.html" %}
+  {% else %}
+    <p class="empty-state" style="text-align:center;padding:3rem 0;color:var(--text-muted);font-size:14px">Nothing here yet. Add something above.</p>
+  {% endfor %}
+</div>
+{% else %}
 <div class="item-grid" id="item-grid">
   {% for item in items %}
     {% include "partials/item_card.html" %}
@@ -8,6 +17,7 @@
     <p class="empty-state">Nothing here yet. Add something above.</p>
   {% endfor %}
 </div>
+{% endif %}
 
 {% if total_pages > 1 %}
 <div class="pagination">

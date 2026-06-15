@@ -158,8 +158,36 @@
     .detail-poster { max-height:240px; }
   }
 
-  /* Book cover — show full image without cropping */
+  /* Book covers — show full image without cropping */
   .poster-wrap-book img { object-fit: contain; }
+  .detail-poster-book img { object-fit: contain; }
+
+  /* List view */
+  .item-list { display: flex; flex-direction: column; gap: 2px; }
+  .item-row {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    gap: .75rem; align-items: center;
+    padding: .45rem .75rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); transition: border-color .15s;
+  }
+  .item-row:hover { border-color: #444; }
+  .item-row.item-watched { border-color: var(--watched) !important; opacity: .75; }
+  .item-row.item-pending { border-color: #555; animation: pulse 2s infinite; }
+  .item-row.item-failed  { border-color: #5a2020; }
+  .row-thumb {
+    width: 44px; height: 66px; border-radius: 3px;
+    overflow: hidden; background: var(--surface2); flex-shrink: 0;
+  }
+  .row-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .row-info { min-width: 0; display: flex; flex-direction: column; gap: .2rem; }
+  .row-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row-sub { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; font-size: 12px; color: var(--text-muted); }
+  .row-authors { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+  .row-year::before { content: '·'; margin-right: .35rem; }
+  .row-genres { display: flex; flex-wrap: wrap; gap: .2rem; margin-top: .1rem; }
+  .row-actions { display: flex; gap: .4rem; flex-shrink: 0; }
 
   /* Selection panel */
   #search-results-panel {
@@ -270,6 +298,20 @@
   </div>
 
   <div class="toolbar-right">
+    <button class="btn btn-sm"
+      hx-post="/view-mode" hx-swap="none"
+      hx-on::after-request="location.reload()"
+      title="{{ 'Switch to list view' if view_mode == 'grid' else 'Switch to grid view' }}">
+      {{ '≡ List' if view_mode == 'grid' else '⊞ Grid' }}
+    </button>
+    {% if is_book %}
+    <button class="btn btn-sm"
+      hx-post="/book-api" hx-swap="none"
+      hx-on::after-request="location.reload()"
+      title="{{ 'Switch to Open Library' if book_api == 'gb' else 'Switch to Google Books' }}">
+      {{ 'OL' if book_api == 'gb' else 'GB' }}
+    </button>
+    {% endif %}
     <button id="fast-toggle" class="btn btn-sm {{ 'btn-accent' if fast_mode else '' }}"
       hx-post="/fast-mode" hx-target="#fast-toggle" hx-swap="outerHTML"
       title="{{ 'Fast mode on — top result added immediately' if fast_mode else 'Select mode — pick from results' }}">

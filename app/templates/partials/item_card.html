@@ -14,7 +14,9 @@
     hx-trigger="click[!event.target.closest('button')]"
     style="cursor:pointer">
     {% if item.media_type == 'book' and item.poster_path %}
-      <img src="{{ item.poster_path }}" alt="{{ item.title }}" loading="lazy">
+      <img src="{{ item.poster_path }}" alt="{{ item.title }}" loading="lazy"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="poster-placeholder" style="display:none">{{ item.title }}</div>
     {% elif item.poster_path %}
       <img src="{{ image_base }}{{ item.poster_path }}" alt="{{ item.title }}" loading="lazy">
     {% elif item.og_image %}

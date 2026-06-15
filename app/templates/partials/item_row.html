@@ -1,0 +1,63 @@
+<div class="item-row item-{{ item.status }}" id="item-{{ item.id }}"
+  {% if item.status == 'pending' %}
+    hx-get="/items/{{ item.id }}/status"
+    hx-trigger="every 2s"
+    hx-target="#item-{{ item.id }}"
+    hx-swap="outerHTML"
+    hx-on::before-request="if((this._p=(this._p||0)+1)>15){htmx.trigger(this,'htmx:abort'); this.querySelector('.badge-pending').textContent='timed out'; return false;}"
+  {% endif %}>
+
+  <div class="row-thumb"
+    hx-get="/items/{{ item.id }}/detail"
+    hx-target="#detail-modal" hx-swap="innerHTML"
+    hx-trigger="click" style="cursor:pointer">
+    {% if item.media_type == 'book' and item.poster_path %}
+      <img src="{{ item.poster_path }}" alt="{{ item.title }}" loading="lazy"
+           onerror="this.style.display='none'">
+    {% elif item.poster_path %}
+      <img src="{{ image_base }}{{ item.poster_path }}" alt="{{ item.title }}" loading="lazy">
+    {% elif item.og_image %}
+      <img src="{{ item.og_image }}" alt="{{ item.title }}" loading="lazy">
+    {% endif %}
+  </div>
+
+  <div class="row-info"
+    hx-get="/items/{{ item.id }}/detail"
+    hx-target="#detail-modal" hx-swap="innerHTML"
+    hx-trigger="click" style="cursor:pointer">
+    <div class="row-title" title="{{ item.title }}">{{ item.title }}</div>
+    <div class="row-sub">
+      {% if item.authors %}
+        <span class="row-authors">{{ item.authors | join(', ') }}</span>
+      {% elif item.media_type and item.media_type != 'book' %}
+        <span class="badge" style="font-size:10px">{{ item.media_type }}</span>
+      {% endif %}
+      {% if item.release_year %}<span class="row-year">{{ item.release_year }}</span>{% endif %}
+      {% if item.status == 'pending' %}<span class="badge badge-pending">identifying…</span>{% endif %}
+      {% if item.status == 'failed' %}<span class="badge badge-failed">unidentified</span>{% endif %}
+    </div>
+    {% if item.genres %}
+    <div class="row-genres">
+      {% for g in item.genres[:3] %}<span class="genre-tag">{{ g }}</span>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="row-actions" onclick="event.stopPropagation()">
+    {% if item.status not in ('pending', 'failed') %}
+      <button class="btn btn-sm"
+        hx-post="/items/{{ item.id }}/toggle-watched"
+        hx-target="#item-{{ item.id }}" hx-swap="outerHTML">
+        {% if section == 'book' %}
+          {{ 'Unread' if item.status == 'watched' else 'Read' }}
+        {% else %}
+          {{ 'Unwatch' if item.status == 'watched' else 'Watched' }}
+        {% endif %}
+      </button>
+    {% endif %}
+    <button class="btn btn-sm btn-danger"
+      hx-delete="/items/{{ item.id }}"
+      hx-target="#item-{{ item.id }}" hx-swap="outerHTML"
+      hx-confirm="Remove '{{ item.title }}'?">Delete</button>
+  </div>
+</div>

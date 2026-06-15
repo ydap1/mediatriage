@@ -2,9 +2,11 @@
 <div class="detail-card">
   <button class="detail-close" onclick="document.getElementById('detail-modal').innerHTML=''">✕</button>
 
-  <div class="detail-poster">
+  <div class="detail-poster {% if is_book %}detail-poster-book{% endif %}">
     {% if is_book and details.poster_path %}
-      <img src="{{ details.poster_path }}" alt="{{ details.title }}">
+      <img src="{{ details.poster_path }}" alt="{{ details.title }}"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="poster-placeholder" style="display:none;height:100%;min-height:300px">{{ details.title }}</div>
     {% elif details.poster_path %}
       <img src="{{ image_base | replace('w342', 'w500') }}{{ details.poster_path }}" alt="{{ details.title }}">
     {% elif item.og_image %}
@@ -42,7 +44,11 @@
     <div class="detail-links">
       {% if is_book %}
         {% if details.ol_key %}
-          <a href="https://books.google.com/books?id={{ details.ol_key }}" target="_blank" rel="noopener" class="detail-link">Google Books</a>
+          {% if details.ol_key.startswith('OL') %}
+            <a href="https://openlibrary.org/works/{{ details.ol_key }}" target="_blank" rel="noopener" class="detail-link">Open Library</a>
+          {% else %}
+            <a href="https://books.google.com/books?id={{ details.ol_key }}" target="_blank" rel="noopener" class="detail-link">Google Books</a>
+          {% endif %}
         {% endif %}
         <a href="https://www.goodreads.com/search?q={{ details.title | urlencode }}" target="_blank" rel="noopener" class="detail-link">Goodreads</a>
       {% else %}
