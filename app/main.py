@@ -72,7 +72,13 @@ async def auth_middleware(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
     return response
+
+
+@app.get("/robots.txt")
+async def robots():
+    return Response("User-agent: *\nDisallow: /\n", media_type="text/plain")
 
 
 @app.on_event("startup")
