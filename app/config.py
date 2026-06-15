@@ -5,6 +5,9 @@ from dataclasses import dataclass, field
 @dataclass
 class Settings:
     tmdb_api_key: str = field(default_factory=lambda: os.environ.get("TMDB_API_KEY", ""))
+    google_books_api_key: str = field(
+        default_factory=lambda: os.environ.get("GOOGLE_BOOKS_API_KEY", "")
+    )
     tmdb_image_base: str = field(
         default_factory=lambda: os.environ.get("TMDB_IMAGE_BASE", "https://image.tmdb.org/t/p/w342")
     )
