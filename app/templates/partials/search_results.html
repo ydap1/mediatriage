@@ -1,0 +1,57 @@
+<div id="search-results-panel">
+  <div class="search-panel-header">
+    <span>Select a match for <em>"{{ query }}"</em></span>
+    <button class="btn btn-sm"
+      hx-get="{{ '/books/' if section == 'book' else '/' }}"
+      hx-target="#grid-container"
+      hx-swap="innerHTML">Cancel</button>
+  </div>
+
+  {% if candidates %}
+  <div class="candidate-grid">
+    {% for item in candidates %}
+    <form hx-post="/confirm" hx-target="#grid-container" hx-swap="innerHTML">
+      <input type="hidden" name="section"      value="{{ section }}">
+      <input type="hidden" name="title"        value="{{ item.title }}">
+      <input type="hidden" name="poster_path"  value="{{ item.poster_path or '' }}">
+      <input type="hidden" name="release_year" value="{{ item.release_year or '' }}">
+      <input type="hidden" name="genres"       value="{{ item.genres | join(',') }}">
+      <input type="hidden" name="overview"     value="{{ item.overview or '' }}">
+      {% if section == 'book' %}
+      <input type="hidden" name="ol_key"   value="{{ item.ol_key or '' }}">
+      <input type="hidden" name="authors"  value="{{ item.authors | join(',') }}">
+      {% else %}
+      <input type="hidden" name="tmdb_id"     value="{{ item.tmdb_id or '' }}">
+      <input type="hidden" name="media_type"  value="{{ item.media_type or 'movie' }}">
+      {% endif %}
+      <button type="submit" class="candidate-card">
+        <div class="candidate-poster">
+          {% if item.poster_path %}
+            {% if section == 'book' %}
+              <img src="{{ item.poster_path }}" alt="{{ item.title }}" loading="lazy">
+            {% else %}
+              <img src="{{ image_base }}{{ item.poster_path }}" alt="{{ item.title }}" loading="lazy">
+            {% endif %}
+          {% else %}
+            <div class="candidate-no-poster">{{ item.title }}</div>
+          {% endif %}
+        </div>
+        <div class="candidate-info">
+          <div class="candidate-title">{{ item.title }}</div>
+          <div class="candidate-meta">
+            {% if item.release_year %}{{ item.release_year }}{% endif %}
+            {% if item.media_type and item.media_type != 'book' %} · {{ item.media_type }}{% endif %}
+            {% if item.authors %} · {{ item.authors | join(', ') }}{% endif %}
+          </div>
+        </div>
+      </button>
+    </form>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="search-no-results">
+    No matches found. Try a different title, or enable
+    <strong>⚡ Fast</strong> mode to use AI identification.
+  </p>
+  {% endif %}
+</div>

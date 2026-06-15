@@ -7,7 +7,7 @@
     hx-on::before-request="if((this._p=(this._p||0)+1)>15){htmx.trigger(this,'htmx:abort'); this.querySelector('.badge-pending').textContent='timed out'; return false;}"
   {% endif %}>
 
-  <div class="poster-wrap"
+  <div class="poster-wrap {% if item.media_type == 'book' %}poster-wrap-book{% endif %}"
     hx-get="/items/{{ item.id }}/detail"
     hx-target="#detail-modal"
     hx-swap="innerHTML"

@@ -157,6 +157,54 @@
     .detail-card { grid-template-columns:1fr; }
     .detail-poster { max-height:240px; }
   }
+
+  /* Book cover — show full image without cropping */
+  .poster-wrap-book img { object-fit: contain; }
+
+  /* Selection panel */
+  #search-results-panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.25rem;
+  }
+  .search-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1rem; font-size: 13px;
+  }
+  .candidate-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 1rem;
+  }
+  .candidate-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    cursor: pointer; text-align: left; padding: 0; width: 100%;
+    color: var(--text); transition: border-color .15s;
+  }
+  .candidate-card:hover { border-color: var(--accent); }
+  .candidate-poster {
+    aspect-ratio: 2/3; background: var(--surface); overflow: hidden;
+  }
+  .candidate-poster img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .candidate-no-poster {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    padding: .5rem; font-size: 11px; color: var(--text-muted);
+    text-align: center; word-break: break-word;
+  }
+  .candidate-info { padding: .4rem .5rem .5rem; }
+  .candidate-title {
+    font-size: 11px; font-weight: 600; line-height: 1.3; margin-bottom: .2rem;
+    overflow: hidden; display: -webkit-box;
+    -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+  .candidate-meta { font-size: 10px; color: var(--text-muted); }
+  .search-no-results {
+    color: var(--text-muted); font-size: 13px;
+    padding: 2rem 0; text-align: center;
+  }
 </style>
 {% endblock %}
 
@@ -217,6 +265,11 @@
   </div>
 
   <div class="toolbar-right">
+    <button id="fast-toggle" class="btn btn-sm {{ 'btn-accent' if fast_mode else '' }}"
+      hx-post="/fast-mode" hx-target="#fast-toggle" hx-swap="outerHTML"
+      title="{{ 'Fast mode on — top result added immediately' if fast_mode else 'Select mode — pick from results' }}">
+      {{ '⚡ Fast' if fast_mode else 'Select' }}
+    </button>
     <a class="btn btn-sm" href="/export?format=csv&section={{ export_section }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}">CSV</a>
     <a class="btn btn-sm" href="/export?format=json&section={{ export_section }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}">JSON</a>
     <button class="btn btn-sm btn-danger"
