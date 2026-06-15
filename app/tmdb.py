@@ -134,3 +134,15 @@ async def search(title: str, media_type: str | None = None, year: int | None = N
 
         best = results[0]
         return _parse_result(best)
+
+
+async def search_multi(title: str, limit: int = 5) -> list[dict]:
+    """Return top N candidates for the selection UI."""
+    async with httpx.AsyncClient() as client:
+        await _load_genres(client)
+        data = await _get(client, "/search/multi", query=title)
+        results = [
+            _parse_result(r) for r in (data or {}).get("results", [])
+            if r.get("media_type") in ("movie", "tv")
+        ]
+        return results[:limit]
