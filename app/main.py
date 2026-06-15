@@ -29,7 +29,7 @@ from .db import (
     get_db,
 )
 from .enrich import enrich_item, _ai_tags
-from . import tmdb, googlebooks
+from . import tmdb, googlebooks, openlibrary
 from .scraper import scrape_url
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -57,6 +57,9 @@ def _grid_ctx(request, items, total, page, all_genres, filters, sort_by, section
         "sort_by": sort_by,
         "section": section,
         "image_base": settings.tmdb_image_base,
+        "fast_mode": request.cookies.get("mt_fast") != "0",
+        "view_mode": request.cookies.get("mt_view", "grid"),
+        "book_api": request.cookies.get("mt_book_api", "gb"),
     }
 
 
@@ -167,7 +170,6 @@ async def film_library(
         )
         all_genres = get_all_genres(conn, section=section)
     ctx = _grid_ctx(request, items, total, page, all_genres, filters, sort_by, section)
-    ctx["fast_mode"] = _is_fast_mode(request)
     if request.headers.get("HX-Request"):
         return templates.TemplateResponse("partials/item_grid.html", ctx)
     return templates.TemplateResponse("library.html", ctx)
@@ -230,7 +232,6 @@ async def books_library(
         )
         all_genres = get_all_genres(conn, section=section)
     ctx = _grid_ctx(request, items, total, page, all_genres, filters, sort_by, section)
-    ctx["fast_mode"] = _is_fast_mode(request)
     if request.headers.get("HX-Request"):
         return templates.TemplateResponse("partials/item_grid.html", ctx)
     return templates.TemplateResponse("library.html", ctx)
@@ -251,11 +252,12 @@ async def add_book(request: Request, background_tasks: BackgroundTasks, input: A
     else:
         raw_title = input
 
+    api = request.cookies.get("mt_book_api", "gb")
     if not _is_fast_mode(request):
-        candidates = await googlebooks.search_multi(raw_title)
+        candidates = await (openlibrary.search_multi if api == "ol" else googlebooks.search_multi)(raw_title)
         return _search_result_response(request, candidates, input, "book")
 
-    match = await googlebooks.search(raw_title)
+    match = await (openlibrary.search if api == "ol" else googlebooks.search)(raw_title)
     if match:
         ai_tags = await _ai_tags(match["title"], match.get("overview", ""), match.get("genres", []))
         data = {**match, "section": "book", "source_url": input if _is_url(input) else None,
@@ -305,9 +307,12 @@ async def confirm_item(
         data["ol_key"] = ol_key or None
         data["authors"] = author_list
         data["media_type"] = "book"
-        # Fetch full description from Google Books (search results may be truncated)
+        # Fetch full description; OL keys start with "OL", GB keys are alphanumeric
         if ol_key:
-            full_desc = await googlebooks.fetch_description(ol_key)
+            if ol_key.startswith("OL"):
+                full_desc = await openlibrary.fetch_description(ol_key)
+            else:
+                full_desc = await googlebooks.fetch_description(ol_key)
             if full_desc:
                 data["overview"] = full_desc
     else:
@@ -341,6 +346,22 @@ async def toggle_fast_mode(request: Request):
     return response
 
 
+@app.post("/book-api", response_class=HTMLResponse)
+async def toggle_book_api(request: Request):
+    new_api = "ol" if request.cookies.get("mt_book_api", "gb") == "gb" else "gb"
+    response = HTMLResponse("")
+    response.set_cookie("mt_book_api", new_api, max_age=365 * 86400, httponly=True, samesite="lax")
+    return response
+
+
+@app.post("/view-mode", response_class=HTMLResponse)
+async def toggle_view_mode(request: Request):
+    new_mode = "list" if request.cookies.get("mt_view", "grid") == "grid" else "grid"
+    response = HTMLResponse("")
+    response.set_cookie("mt_view", new_mode, max_age=365 * 86400, httponly=True, samesite="lax")
+    return response
+
+
 # ── Item detail ───────────────────────────────────────────────────────────────
 
 @app.get("/items/{item_id}/detail", response_class=HTMLResponse)
@@ -353,8 +374,7 @@ async def item_detail(request: Request, item_id: int):
     section = item.get("section", "film")
 
     if section == "book":
-        ol_key = item.get("ol_key")
-        details = await googlebooks.get_details(ol_key, item) if ol_key else item
+        details = item  # all needed data is already stored
     else:
         details = None
         if item.get("tmdb_id") and item.get("media_type"):
