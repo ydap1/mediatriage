@@ -213,12 +213,17 @@
   hx-post="{{ add_url }}"
   hx-target="#grid-container"
   hx-swap="innerHTML"
-  hx-on::after-request="this.reset()">
+  hx-indicator="#add-indicator"
+  hx-on::before-request="this.querySelector('[type=submit]').disabled=true"
+  hx-on::after-request="this.reset(); this.querySelector('[type=submit]').disabled=false">
   <input type="text" name="input"
     placeholder="{{ 'Title, author, or description…' if is_book else 'Title, description, or URL…' }}"
     required autofocus>
   <button class="btn {{ 'btn-accent-book' if is_book else 'btn-accent' }}" type="submit">Add</button>
 </form>
+<p id="add-indicator" class="htmx-indicator" style="font-size:12px;color:var(--text-muted);margin:.3rem 0 0">
+  {{ 'Searching Google Books…' if is_book else 'Searching TMDb…' }}
+</p>
 
 <div class="toolbar">
   <div class="toolbar-left">
