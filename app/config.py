@@ -18,7 +18,7 @@ class Settings:
         default_factory=lambda: os.environ.get("ENABLE_AI_TAGS", "false").lower() == "true"
     )
     db_path: str = field(
-        default_factory=lambda: os.environ.get("DB_PATH", "/data/filmtriage.db")
+        default_factory=lambda: os.environ.get("DB_PATH", "/data/mediatriage.db")
     )
     app_password: str = field(
         default_factory=lambda: os.environ.get("APP_PASSWORD", "changeme")

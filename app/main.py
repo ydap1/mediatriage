@@ -3,9 +3,10 @@ import io
 import json
 import logging
 import math
+import urllib.parse
 from typing import Annotated
 
-from fastapi import BackgroundTasks, Depends, FastAPI, Form, Request, Response
+from fastapi import BackgroundTasks, FastAPI, Form, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -28,22 +29,23 @@ from .db import (
     get_db,
 )
 from .enrich import enrich_item, _ai_tags
-from . import tmdb
+from . import tmdb, openlibrary
 from .scraper import scrape_url
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI(title="FilmTriage")
+app = FastAPI(title="MediaTriage")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 templates = Jinja2Templates(directory="app/templates")
+templates.env.filters["urlencode"] = lambda s: urllib.parse.quote_plus(s or "")
 
 PAGE_SIZE = 24
 
 
-def _grid_ctx(request, items, total, page, all_genres, filters, sort_by="date_added"):
+def _grid_ctx(request, items, total, page, all_genres, filters, sort_by, section):
     return {
         "request": request,
         "items": items,
@@ -53,6 +55,7 @@ def _grid_ctx(request, items, total, page, all_genres, filters, sort_by="date_ad
         "all_genres": all_genres,
         "filters": filters,
         "sort_by": sort_by,
+        "section": section,
         "image_base": settings.tmdb_image_base,
     }
 
@@ -101,10 +104,35 @@ async def logout():
     return response
 
 
-# ── Library ───────────────────────────────────────────────────────────────────
+# ── Shared helpers ────────────────────────────────────────────────────────────
+
+def _is_url(value: str) -> bool:
+    return value.startswith("http://") or value.startswith("https://")
+
+
+def _empty_filters():
+    return {"status": "", "media_type": "", "genre": "", "q": ""}
+
+
+async def _render_grid(request: Request, section: str) -> HTMLResponse:
+    with get_db() as conn:
+        items, total = list_items(conn, section=section, page=1, page_size=PAGE_SIZE)
+        all_genres = get_all_genres(conn, section=section)
+    ctx = _grid_ctx(request, items, total, 1, all_genres, _empty_filters(), "date_added", section)
+    response = templates.TemplateResponse("partials/item_grid.html", ctx)
+    response.headers["HX-Retarget"] = "#grid-container"
+    response.headers["HX-Reswap"] = "innerHTML"
+    return response
+
+
+def _card_ctx(request, item, section):
+    return {"request": request, "item": item, "section": section, "image_base": settings.tmdb_image_base}
+
+
+# ── Film & TV library ─────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
-async def library(
+async def film_library(
     request: Request,
     status: str = "",
     media_type: str = "",
@@ -113,55 +141,23 @@ async def library(
     page: int = 1,
     sort_by: str = "date_added",
 ):
+    section = "film"
     filters = {"status": status, "media_type": media_type, "genre": genre, "q": q}
     with get_db() as conn:
         items, total = list_items(
-            conn,
-            status=status or None,
-            media_type=media_type or None,
-            genre=genre or None,
-            query=q or None,
-            page=page,
-            page_size=PAGE_SIZE,
-            sort_by=sort_by,
+            conn, section=section, status=status or None, media_type=media_type or None,
+            genre=genre or None, query=q or None, page=page, page_size=PAGE_SIZE, sort_by=sort_by,
         )
-        all_genres = get_all_genres(conn)
-
-    ctx = _grid_ctx(request, items, total, page, all_genres, filters, sort_by)
-
+        all_genres = get_all_genres(conn, section=section)
+    ctx = _grid_ctx(request, items, total, page, all_genres, filters, sort_by, section)
     if request.headers.get("HX-Request"):
         return templates.TemplateResponse("partials/item_grid.html", ctx)
     return templates.TemplateResponse("library.html", ctx)
 
 
-# ── Add item ──────────────────────────────────────────────────────────────────
-
-def _is_url(value: str) -> bool:
-    return value.startswith("http://") or value.startswith("https://")
-
-
-async def _render_grid(request: Request) -> HTMLResponse:
-    """Re-render the full grid (used after add/delete-all to refresh state)."""
-    with get_db() as conn:
-        items, total = list_items(conn, page=1, page_size=PAGE_SIZE)
-        all_genres = get_all_genres(conn)
-    ctx = _grid_ctx(
-        request, items, total, 1, all_genres,
-        {"status": "", "media_type": "", "genre": "", "q": ""},
-    )
-    response = templates.TemplateResponse("partials/item_grid.html", ctx)
-    response.headers["HX-Retarget"] = "#grid-container"
-    response.headers["HX-Reswap"] = "innerHTML"
-    return response
-
-
 @app.post("/add", response_class=HTMLResponse)
 @limiter.limit(f"{settings.max_adds_per_hour}/hour")
-async def add_item(
-    request: Request,
-    background_tasks: BackgroundTasks,
-    input: Annotated[str, Form()],
-):
+async def add_film(request: Request, background_tasks: BackgroundTasks, input: Annotated[str, Form()]):
     input = input.strip()
     if not input:
         return HTMLResponse("", status_code=422)
@@ -175,31 +171,77 @@ async def add_item(
         raw_title = input
 
     match = await tmdb.search(raw_title)
-
     if match:
         ai_tags = await _ai_tags(match["title"], match.get("overview", ""), match.get("genres", []))
-        data = {
-            **match,
-            "source_url": input if _is_url(input) else None,
-            "og_image": og_image,
-            "status": "to_watch",
-            "ai_tags": ai_tags,
-        }
+        data = {**match, "section": "film", "source_url": input if _is_url(input) else None,
+                "og_image": og_image, "status": "to_watch", "ai_tags": ai_tags}
         with get_db() as conn:
-            item_id, is_duplicate = upsert_item(conn, data)
-
-        return await _render_grid(request)
+            upsert_item(conn, data)
     else:
-        data = {
-            "title": raw_title,
-            "source_url": input if _is_url(input) else None,
-            "og_image": og_image,
-            "status": "pending",
-        }
+        data = {"title": raw_title, "section": "film", "source_url": input if _is_url(input) else None,
+                "og_image": og_image, "status": "pending"}
         with get_db() as conn:
             item_id = insert_item(conn, data)
-        background_tasks.add_task(enrich_item, item_id, raw_title, og_image)
-        return await _render_grid(request)
+        background_tasks.add_task(enrich_item, item_id, raw_title, og_image, "film")
+
+    return await _render_grid(request, "film")
+
+
+# ── Books library ─────────────────────────────────────────────────────────────
+
+@app.get("/books/", response_class=HTMLResponse)
+async def books_library(
+    request: Request,
+    status: str = "",
+    genre: str = "",
+    q: str = "",
+    page: int = 1,
+    sort_by: str = "date_added",
+):
+    section = "book"
+    filters = {"status": status, "media_type": "", "genre": genre, "q": q}
+    with get_db() as conn:
+        items, total = list_items(
+            conn, section=section, status=status or None,
+            genre=genre or None, query=q or None, page=page, page_size=PAGE_SIZE, sort_by=sort_by,
+        )
+        all_genres = get_all_genres(conn, section=section)
+    ctx = _grid_ctx(request, items, total, page, all_genres, filters, sort_by, section)
+    if request.headers.get("HX-Request"):
+        return templates.TemplateResponse("partials/item_grid.html", ctx)
+    return templates.TemplateResponse("library.html", ctx)
+
+
+@app.post("/books/add", response_class=HTMLResponse)
+@limiter.limit(f"{settings.max_adds_per_hour}/hour")
+async def add_book(request: Request, background_tasks: BackgroundTasks, input: Annotated[str, Form()]):
+    input = input.strip()
+    if not input:
+        return HTMLResponse("", status_code=422)
+
+    og_image = None
+    if _is_url(input):
+        scraped = await scrape_url(input)
+        raw_title = scraped.get("title") or input
+        og_image = scraped.get("og_image")
+    else:
+        raw_title = input
+
+    match = await openlibrary.search(raw_title)
+    if match:
+        ai_tags = await _ai_tags(match["title"], match.get("overview", ""), match.get("genres", []))
+        data = {**match, "section": "book", "source_url": input if _is_url(input) else None,
+                "og_image": og_image, "status": "to_watch", "ai_tags": ai_tags}
+        with get_db() as conn:
+            upsert_item(conn, data)
+    else:
+        data = {"title": raw_title, "section": "book", "media_type": "book",
+                "source_url": input if _is_url(input) else None, "og_image": og_image, "status": "pending"}
+        with get_db() as conn:
+            item_id = insert_item(conn, data)
+        background_tasks.add_task(enrich_item, item_id, raw_title, og_image, "book")
+
+    return await _render_grid(request, "book")
 
 
 # ── Item detail ───────────────────────────────────────────────────────────────
@@ -211,22 +253,25 @@ async def item_detail(request: Request, item_id: int):
     if not item:
         return HTMLResponse("", status_code=404)
 
-    details = None
-    if item.get("tmdb_id") and item.get("media_type"):
-        details = await tmdb.get_details(item["tmdb_id"], item["media_type"])
+    section = item.get("section", "film")
+
+    if section == "book":
+        ol_key = item.get("ol_key")
+        details = await openlibrary.get_details(ol_key, item) if ol_key else item
+    else:
+        details = None
+        if item.get("tmdb_id") and item.get("media_type"):
+            details = await tmdb.get_details(item["tmdb_id"], item["media_type"])
+        details = details or item
 
     return templates.TemplateResponse(
         "partials/item_detail.html",
-        {
-            "request": request,
-            "item": item,
-            "details": details or item,
-            "image_base": settings.tmdb_image_base,
-        },
+        {"request": request, "item": item, "details": details, "section": section,
+         "image_base": settings.tmdb_image_base},
     )
 
 
-# ── Item actions ──────────────────────────────────────────────────────────────
+# ── Item actions (shared) ─────────────────────────────────────────────────────
 
 @app.post("/items/{item_id}/toggle-watched", response_class=HTMLResponse)
 async def toggle_watched(request: Request, item_id: int):
@@ -239,7 +284,7 @@ async def toggle_watched(request: Request, item_id: int):
         item = get_item(conn, item_id)
     return templates.TemplateResponse(
         "partials/item_card.html",
-        {"request": request, "item": item, "image_base": settings.tmdb_image_base},
+        _card_ctx(request, item, item.get("section", "film")),
     )
 
 
@@ -260,14 +305,13 @@ async def item_status(request: Request, item_id: int):
         return Response(status_code=204)
     return templates.TemplateResponse(
         "partials/item_card.html",
-        {"request": request, "item": item, "image_base": settings.tmdb_image_base},
+        _card_ctx(request, item, item.get("section", "film")),
     )
 
 
 @app.post("/items/{item_id}/edit", response_class=HTMLResponse)
 async def edit_item(
-    request: Request,
-    item_id: int,
+    request: Request, item_id: int,
     title: Annotated[str, Form()],
     genres: Annotated[str, Form()] = "",
 ):
@@ -277,28 +321,30 @@ async def edit_item(
         item = get_item(conn, item_id)
     return templates.TemplateResponse(
         "partials/item_card.html",
-        {"request": request, "item": item, "image_base": settings.tmdb_image_base},
+        _card_ctx(request, item, item.get("section", "film")),
     )
 
 
 # ── Delete all ────────────────────────────────────────────────────────────────
 
 @app.delete("/items", response_class=HTMLResponse)
-async def remove_all_items(request: Request):
+async def remove_all_items(request: Request, section: str = "film"):
     with get_db() as conn:
-        delete_all_items(conn)
-    return await _render_grid(request)
+        delete_all_items(conn, section=section)
+    return await _render_grid(request, section)
 
 
 # ── Export ────────────────────────────────────────────────────────────────────
 
-_EXPORT_FIELDS = ["id", "title", "media_type", "genres", "release_year", "status",
-                  "date_added", "overview", "tmdb_id", "source_url", "ai_tags"]
+_EXPORT_FIELDS = ["id", "title", "section", "media_type", "authors", "genres",
+                  "release_year", "status", "date_added", "overview", "tmdb_id",
+                  "ol_key", "source_url", "ai_tags"]
 
 
 @app.get("/export")
 async def export_items(
     format: str = "json",
+    section: str = "",
     status: str = "",
     media_type: str = "",
     genre: str = "",
@@ -306,11 +352,8 @@ async def export_items(
 ):
     with get_db() as conn:
         items = get_all_items(
-            conn,
-            status=status or None,
-            media_type=media_type or None,
-            genre=genre or None,
-            query=q or None,
+            conn, section=section or None, status=status or None,
+            media_type=media_type or None, genre=genre or None, query=q or None,
         )
 
     if format == "csv":
@@ -318,17 +361,20 @@ async def export_items(
         writer = csv.DictWriter(out, fieldnames=_EXPORT_FIELDS, extrasaction="ignore")
         writer.writeheader()
         for item in items:
-            writer.writerow({**item, "genres": ", ".join(item.get("genres", [])),
-                             "ai_tags": ", ".join(item.get("ai_tags", []))})
+            writer.writerow({
+                **item,
+                "genres": ", ".join(item.get("genres", [])),
+                "authors": ", ".join(item.get("authors", [])),
+                "ai_tags": ", ".join(item.get("ai_tags", [])),
+            })
         return Response(
-            content=out.getvalue(),
-            media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=filmtriage.csv"},
+            content=out.getvalue(), media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=mediatriage.csv"},
         )
 
     clean = [{k: item.get(k) for k in _EXPORT_FIELDS} for item in items]
     return Response(
         content=json.dumps(clean, indent=2, default=str),
         media_type="application/json",
-        headers={"Content-Disposition": "attachment; filename=filmtriage.json"},
+        headers={"Content-Disposition": "attachment; filename=mediatriage.json"},
     )
