@@ -2,8 +2,8 @@ services:
   app:
     build:
       context: https://github.com/ydap1/mediatriage.git
-    expose:
-      - "5543"
+    ports:
+      - "5543:5543"
     volumes:
       - ./data:/data
     env_file: .env
