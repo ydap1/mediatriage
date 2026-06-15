@@ -1,7 +1,7 @@
 services:
   app:
     build:
-      context: https://github.com/ydap1/filmtriage.git
+      context: https://github.com/ydap1/mediatriage.git
     expose:
       - "5543"
     volumes:
