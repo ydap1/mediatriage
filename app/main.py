@@ -29,7 +29,7 @@ from .db import (
     get_db,
 )
 from .enrich import enrich_item, _ai_tags
-from . import tmdb, openlibrary
+from . import tmdb, googlebooks
 from .scraper import scrape_url
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -111,7 +111,8 @@ def _is_url(value: str) -> bool:
 
 
 def _is_fast_mode(request: Request) -> bool:
-    return request.cookies.get("mt_fast") == "1"
+    # Fast is the default; selection mode requires explicit opt-in (cookie = "0")
+    return request.cookies.get("mt_fast") != "0"
 
 
 def _empty_filters():
@@ -190,6 +191,7 @@ async def add_film(request: Request, background_tasks: BackgroundTasks, input: A
         candidates = await tmdb.search_multi(raw_title)
         return _search_result_response(request, candidates, input, "film")
 
+
     match = await tmdb.search(raw_title)
     if match:
         ai_tags = await _ai_tags(match["title"], match.get("overview", ""), match.get("genres", []))
@@ -249,10 +251,10 @@ async def add_book(request: Request, background_tasks: BackgroundTasks, input: A
         raw_title = input
 
     if not _is_fast_mode(request):
-        candidates = await openlibrary.search_multi(raw_title)
+        candidates = await googlebooks.search_multi(raw_title)
         return _search_result_response(request, candidates, input, "book")
 
-    match = await openlibrary.search(raw_title)
+    match = await googlebooks.search(raw_title)
     if match:
         ai_tags = await _ai_tags(match["title"], match.get("overview", ""), match.get("genres", []))
         data = {**match, "section": "book", "source_url": input if _is_url(input) else None,
@@ -302,9 +304,11 @@ async def confirm_item(
         data["ol_key"] = ol_key or None
         data["authors"] = author_list
         data["media_type"] = "book"
-        # Fetch description if not passed (search_multi doesn't include it)
-        if not overview and ol_key:
-            data["overview"] = await openlibrary.fetch_description(ol_key)
+        # Fetch full description from Google Books (search results may be truncated)
+        if ol_key:
+            full_desc = await googlebooks.fetch_description(ol_key)
+            if full_desc:
+                data["overview"] = full_desc
     else:
         data["tmdb_id"] = int(tmdb_id) if tmdb_id.isdigit() else None
         data["media_type"] = media_type or "movie"
@@ -322,13 +326,16 @@ async def toggle_fast_mode(request: Request):
     cls = "btn btn-sm btn-accent" if new_fast else "btn btn-sm"
     html = (
         f'<button id="fast-toggle" class="{cls}" '
-        f'hx-post="/fast-mode" hx-target="#fast-toggle" hx-swap="outerHTML">'
+        f'hx-post="/fast-mode" hx-target="#fast-toggle" hx-swap="outerHTML" '
+        f'title="{"Fast mode: adds top result immediately" if new_fast else "Select mode: pick from results"}">'
         f'{label}</button>'
     )
     response = HTMLResponse(html)
-    if new_fast:
-        response.set_cookie("mt_fast", "1", max_age=365 * 86400, httponly=True, samesite="lax")
+    if not new_fast:
+        # Opt into selection mode
+        response.set_cookie("mt_fast", "0", max_age=365 * 86400, httponly=True, samesite="lax")
     else:
+        # Return to fast mode (default) — delete the opt-out cookie
         response.delete_cookie("mt_fast")
     return response
 
@@ -346,7 +353,7 @@ async def item_detail(request: Request, item_id: int):
 
     if section == "book":
         ol_key = item.get("ol_key")
-        details = await openlibrary.get_details(ol_key, item) if ol_key else item
+        details = await googlebooks.get_details(ol_key, item) if ol_key else item
     else:
         details = None
         if item.get("tmdb_id") and item.get("media_type"):
