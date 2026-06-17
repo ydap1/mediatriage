@@ -123,7 +123,7 @@
   </style>
   {% block head %}{% endblock %}
 </head>
-<body>
+<body{% if zen_mode %} class="zen"{% endif %}>
   <header>
     <div class="header-left">
       <span class="logo">Media<span>Triage</span></span>
