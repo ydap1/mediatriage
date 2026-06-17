@@ -34,6 +34,10 @@ def _resolve_genres(genre_ids: list[int], media_type: str) -> list[str]:
     return [cache[gid] for gid in genre_ids if gid in cache]
 
 
+def _has_cyrillic(text: str) -> bool:
+    return any('Ѐ' <= c <= 'ӿ' for c in text)
+
+
 def _extract_year(date_str: str | None) -> int | None:
     if date_str and len(date_str) >= 4:
         try:
@@ -140,14 +144,14 @@ async def search(title: str, media_type: str | None = None, year: int | None = N
         await _load_genres(client)
 
         if media_type in ("movie", "tv"):
-            extra = {}
+            lang = {"language": "ru"} if _has_cyrillic(title) else {}
+            extra = dict(lang)
             if year:
-                extra = {"primary_release_year": year} if media_type == "movie" else {"first_air_date_year": year}
+                extra.update({"primary_release_year": year} if media_type == "movie" else {"first_air_date_year": year})
             data = await _get(client, f"/search/{media_type}", query=title, **extra)
             results = (data or {}).get("results", [])
-            # If year-filtered search returns nothing, retry without year
             if not results and year:
-                data = await _get(client, f"/search/{media_type}", query=title)
+                data = await _get(client, f"/search/{media_type}", query=title, **lang)
                 results = (data or {}).get("results", [])
             if results:
                 r = results[0]
@@ -168,6 +172,31 @@ async def search(title: str, media_type: str | None = None, year: int | None = N
         parsed = _parse_result(best)
         parsed["directors"] = await _fetch_directors(client, parsed["tmdb_id"], parsed["media_type"])
         return parsed
+
+
+async def search_one(title: str, media_type: str | None = None, year: int | None = None) -> dict | None:
+    """Best TMDb match without fetching directors — for building candidate lists."""
+    async with httpx.AsyncClient() as client:
+        await _load_genres(client)
+        lang = {"language": "ru"} if _has_cyrillic(title) else {}
+
+        if media_type in ("movie", "tv"):
+            extra = dict(lang)
+            if year:
+                extra.update({"primary_release_year": year} if media_type == "movie" else {"first_air_date_year": year})
+            data = await _get(client, f"/search/{media_type}", query=title, **extra)
+            results = (data or {}).get("results", [])
+            if not results and year:
+                data = await _get(client, f"/search/{media_type}", query=title, **lang)
+                results = (data or {}).get("results", [])
+            if results:
+                r = results[0]
+                r["media_type"] = media_type
+                return _parse_result(r)
+
+        data = await _get(client, "/search/multi", query=title)
+        results = [r for r in (data or {}).get("results", []) if r.get("media_type") in ("movie", "tv")]
+        return _parse_result(results[0]) if results else None
 
 
 async def search_multi(title: str, limit: int = 5) -> list[dict]:
