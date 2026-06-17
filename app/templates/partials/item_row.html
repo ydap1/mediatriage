@@ -41,6 +41,15 @@
       {% for g in item.genres[:3] %}<span class="genre-tag">{{ g }}</span>{% endfor %}
     </div>
     {% endif %}
+    {% set streaming = item.watch_providers | selectattr("type", "equalto", "flatrate") | list %}
+    {% if streaming %}
+    <div style="display:flex;gap:4px;margin-top:4px">
+      {% for p in streaming[:3] %}
+        <img src="https://image.tmdb.org/t/p/w45{{ p.logo_path }}" alt="{{ p.provider_name }}"
+             title="{{ p.provider_name }}" class="provider-logo" loading="lazy">
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
 
   <div class="row-actions" onclick="event.stopPropagation()">
