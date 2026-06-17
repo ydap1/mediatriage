@@ -374,7 +374,7 @@ async def confirm_item(
 @app.post("/fast-mode", response_class=HTMLResponse)
 async def toggle_fast_mode(request: Request):
     new_fast = not _is_fast_mode(request)
-    label = "⚡ Fast" if new_fast else "Select"
+    label = "Fast" if new_fast else "Select"
     cls = "btn btn-sm btn-accent" if new_fast else "btn btn-sm"
     html = (
         f'<button id="fast-toggle" class="{cls}" '
@@ -395,7 +395,7 @@ async def toggle_fast_mode(request: Request):
 @app.post("/ai-mode", response_class=HTMLResponse)
 async def toggle_ai_mode(request: Request):
     new_ai = not _is_ai_mode(request)
-    label = "🤖 AI" if new_ai else "AI"
+    label = "AI"
     cls = "btn btn-sm btn-accent" if new_ai else "btn btn-sm"
     html = (
         f'<button id="ai-toggle" class="{cls}" '
