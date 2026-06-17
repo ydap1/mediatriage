@@ -85,6 +85,13 @@
   }
   .ai-tag { color:#a88; border-color:#443; background:#221; }
 
+  .card-providers { display:flex; gap:4px; margin-top:6px; flex-wrap:wrap; }
+  .provider-logo { width:20px; height:20px; border-radius:4px; object-fit:cover; }
+  .detail-providers { display:flex; flex-direction:column; gap:6px; margin-top:.5rem; }
+  .provider-group { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .provider-label { font-size:11px; color:var(--text-muted); min-width:36px; }
+  .detail-providers .provider-logo { width:28px; height:28px; }
+
   .pagination {
     display:flex; align-items:center; justify-content:center;
     gap:1rem; margin-top:2rem;
@@ -312,6 +319,11 @@
       {{ 'OL' if book_api == 'gb' else 'GB' }}
     </button>
     {% endif %}
+    <button id="ai-toggle" class="btn btn-sm {{ 'btn-accent' if ai_mode else '' }}"
+      hx-post="/ai-mode" hx-target="#ai-toggle" hx-swap="outerHTML"
+      title="{{ 'AI mode on — identifies titles and descriptions' if ai_mode else 'AI mode off — direct search only' }}">
+      {{ '🤖 AI' if ai_mode else 'AI' }}
+    </button>
     <button id="fast-toggle" class="btn btn-sm {{ 'btn-accent' if fast_mode else '' }}"
       hx-post="/fast-mode" hx-target="#fast-toggle" hx-swap="outerHTML"
       title="{{ 'Fast mode on — top result added immediately' if fast_mode else 'Select mode — pick from results' }}">
