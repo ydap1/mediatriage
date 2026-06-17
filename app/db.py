@@ -6,7 +6,7 @@ from typing import Any
 
 from .config import settings
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 _SORT_MAP = {
     "date_added": "i.date_added DESC",
@@ -48,6 +48,7 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             media_type   TEXT,
             genres       TEXT DEFAULT '[]',
             authors      TEXT DEFAULT '[]',
+            directors    TEXT DEFAULT '[]',
             poster_path  TEXT,
             og_image     TEXT,
             overview     TEXT,
@@ -93,6 +94,10 @@ def _migrate_v2_to_v3(conn: sqlite3.Connection) -> None:
     conn.execute("ALTER TABLE items ADD COLUMN watch_providers TEXT DEFAULT '[]'")
 
 
+def _migrate_v3_to_v4(conn: sqlite3.Connection) -> None:
+    conn.execute("ALTER TABLE items ADD COLUMN directors TEXT DEFAULT '[]'")
+
+
 def init_db() -> None:
     Path(settings.db_path).parent.mkdir(parents=True, exist_ok=True)
     with get_db() as conn:
@@ -100,12 +105,17 @@ def init_db() -> None:
         if version == 0:
             _create_schema(conn)
             _migrate_v2_to_v3(conn)
+            _migrate_v3_to_v4(conn)
         elif version == 1:
             _migrate_v1_to_v2(conn)
             _migrate_v2_to_v3(conn)
+            _migrate_v3_to_v4(conn)
         elif version == 2:
             _migrate_v2_to_v3(conn)
+            _migrate_v3_to_v4(conn)
         elif version == 3:
+            _migrate_v3_to_v4(conn)
+        elif version == 4:
             pass
         else:
             raise RuntimeError(
@@ -120,6 +130,7 @@ def row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     d["genres"] = json.loads(d.get("genres") or "[]")
     d["ai_tags"] = json.loads(d.get("ai_tags") or "[]")
     d["authors"] = json.loads(d.get("authors") or "[]")
+    d["directors"] = json.loads(d.get("directors") or "[]")
     d["watch_providers"] = json.loads(d.get("watch_providers") or "[]")
     return d
 
@@ -127,10 +138,10 @@ def row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
 def insert_item(conn: sqlite3.Connection, data: dict) -> int:
     cur = conn.execute(
         """INSERT INTO items
-           (title, section, tmdb_id, ol_key, media_type, genres, authors,
+           (title, section, tmdb_id, ol_key, media_type, genres, authors, directors,
             poster_path, og_image, overview, release_year, source_url, status, ai_tags, watch_providers)
            VALUES
-           (:title, :section, :tmdb_id, :ol_key, :media_type, :genres, :authors,
+           (:title, :section, :tmdb_id, :ol_key, :media_type, :genres, :authors, :directors,
             :poster_path, :og_image, :overview, :release_year, :source_url, :status, :ai_tags, :watch_providers)""",
         {
             "title": data.get("title", ""),
@@ -140,6 +151,7 @@ def insert_item(conn: sqlite3.Connection, data: dict) -> int:
             "media_type": data.get("media_type"),
             "genres": json.dumps(data.get("genres", [])),
             "authors": json.dumps(data.get("authors", [])),
+            "directors": json.dumps(data.get("directors", [])),
             "poster_path": data.get("poster_path"),
             "og_image": data.get("og_image"),
             "overview": data.get("overview"),
@@ -179,7 +191,7 @@ def upsert_item(conn: sqlite3.Connection, data: dict) -> tuple[int, bool]:
 
 def update_item(conn: sqlite3.Connection, item_id: int, data: dict) -> None:
     fields = {k: v for k, v in data.items() if k != "id"}
-    for list_field in ("genres", "ai_tags", "authors", "watch_providers"):
+    for list_field in ("genres", "ai_tags", "authors", "directors", "watch_providers"):
         if list_field in fields and isinstance(fields[list_field], list):
             fields[list_field] = json.dumps(fields[list_field])
     set_clause = ", ".join(f"{k} = :{k}" for k in fields)
