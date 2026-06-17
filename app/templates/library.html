@@ -312,6 +312,26 @@
   body.zen .detail-providers { display: none; }
   body.zen .detail-cast { display: none; }
 
+  /* AI terminal */
+  .ai-term {
+    position: fixed; bottom: 0; right: 1.5rem; width: 520px; z-index: 400;
+    font-family: 'SF Mono', 'Fira Mono', Consolas, monospace; font-size: 11px; line-height: 1.45;
+    border: 1px solid #1e1e1e; border-bottom: none; border-radius: 5px 5px 0 0; overflow: hidden;
+  }
+  .ai-term-bar {
+    background: #111; color: #555; padding: .3rem .75rem;
+    cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #1c1c1c; user-select: none;
+  }
+  .ai-term-bar:hover { background: #181818; color: #888; }
+  .ai-term-chevron { font-size: 8px; transition: transform .2s; }
+  .ai-term--open .ai-term-chevron { transform: rotate(180deg); }
+  .ai-term-body {
+    background: #080808; color: #888; max-height: 0; overflow-y: auto;
+    transition: max-height .25s ease;
+  }
+  .ai-term--open .ai-term-body { max-height: 32vh; }
+
   /* Book covers — show full image without cropping */
   .poster-wrap-book img { object-fit: contain; }
   .detail-poster-book img { object-fit: contain; }
@@ -501,4 +521,16 @@
 </div>
 
 <div id="detail-modal" onclick="if(event.target===this)this.innerHTML=''"></div>
+
+<div id="ai-term" class="ai-term">
+  <div class="ai-term-bar" onclick="document.getElementById('ai-term').classList.toggle('ai-term--open')">
+    <span>AI Log</span>
+    <span class="ai-term-chevron">▲</span>
+  </div>
+  <div class="ai-term-body"
+    hx-get="/ai-log/entries"
+    hx-trigger="every 3s"
+    hx-swap="innerHTML">
+  </div>
+</div>
 {% endblock %}
