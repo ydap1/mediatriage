@@ -74,31 +74,6 @@
     </div>
     {% endif %}
 
-    {% if not is_book and details.watch_providers %}
-    {% set flatrate = details.watch_providers | selectattr("type", "equalto", "flatrate") | list %}
-    {% set rent     = details.watch_providers | selectattr("type", "equalto", "rent")     | list %}
-    {% set buy      = details.watch_providers | selectattr("type", "equalto", "buy")      | list %}
-    {% if flatrate or rent or buy %}
-    <div class="detail-providers">
-      {% if flatrate %}
-      <div class="provider-group"><span class="provider-label">Stream</span>
-        {% for p in flatrate %}<img src="https://image.tmdb.org/t/p/w45{{ p.logo_path }}" title="{{ p.provider_name }}" class="provider-logo">{% endfor %}
-      </div>
-      {% endif %}
-      {% if rent %}
-      <div class="provider-group"><span class="provider-label">Rent</span>
-        {% for p in rent %}<img src="https://image.tmdb.org/t/p/w45{{ p.logo_path }}" title="{{ p.provider_name }}" class="provider-logo">{% endfor %}
-      </div>
-      {% endif %}
-      {% if buy %}
-      <div class="provider-group"><span class="provider-label">Buy</span>
-        {% for p in buy %}<img src="https://image.tmdb.org/t/p/w45{{ p.logo_path }}" title="{{ p.provider_name }}" class="provider-logo">{% endfor %}
-      </div>
-      {% endif %}
-    </div>
-    {% endif %}
-    {% endif %}
-
     {% if details.overview %}
     <p class="detail-overview">{{ details.overview }}</p>
     {% endif %}
