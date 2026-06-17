@@ -15,7 +15,34 @@
     margin-bottom: 1.25rem; align-items: center;
   }
   .toolbar-left  { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; flex: 1; }
-  .toolbar-right { display: flex; gap: .5rem; align-items: center; }
+  .toolbar-right { display: flex; gap: .4rem; align-items: center; }
+
+  .toggle-group {
+    display: flex; border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .toggle-group .btn {
+    border: none; border-radius: 0;
+    border-right: 1px solid var(--border);
+    background: var(--surface2); padding: .25rem .55rem;
+  }
+  .toggle-group .btn:last-child { border-right: none; }
+  .toggle-group .btn.btn-accent { background: var(--accent); color: #fff; }
+  .toggle-group .btn:hover:not(.btn-accent) { background: var(--border); }
+
+  .toolbar-sep {
+    width: 1px; height: 18px; background: var(--border);
+    flex-shrink: 0; align-self: center;
+  }
+
+  .util-link {
+    font-size: 12px; color: var(--text-muted);
+    padding: .25rem .4rem; border-radius: 3px;
+    border: 1px solid transparent;
+    transition: color .15s, border-color .15s;
+    display: inline-flex; align-items: center;
+  }
+  .util-link:hover { color: var(--text); border-color: var(--border); }
 
   .item-grid {
     display: grid;
@@ -85,12 +112,6 @@
   }
   .ai-tag { color:#a88; border-color:#443; background:#221; }
 
-  .card-providers { display:flex; gap:4px; margin-top:6px; flex-wrap:wrap; }
-  .provider-logo { width:20px; height:20px; border-radius:4px; object-fit:cover; }
-  .detail-providers { display:flex; flex-direction:column; gap:6px; margin-top:.5rem; }
-  .provider-group { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-  .provider-label { font-size:11px; color:var(--text-muted); min-width:36px; }
-  .detail-providers .provider-logo { width:28px; height:28px; }
 
   .pagination {
     display:flex; align-items:center; justify-content:center;
@@ -175,10 +196,12 @@
   body.zen footer { display: none; }
   body.zen main { max-width: 740px; }
 
-  .zen-doc-header { display: none; text-align: center; padding: 2rem 0 2.5rem; border-bottom: 1px solid #1c1c1c; margin-bottom: 2rem; }
+  .zen-doc-header { display: none; text-align: center; padding: 1.25rem 0 1.75rem; border-bottom: 1px solid #1c1c1c; margin-bottom: 2rem; }
   body.zen .zen-doc-header { display: block; }
-  .zen-doc-title { font-size: 1.4rem; font-weight: normal; letter-spacing: .06em; }
   .zen-doc-sub   { font-size: 12px; color: #555; margin-top: .3rem; font-style: italic; }
+
+  .zen-director { display: none; }
+  body.zen .zen-director { display: block; font-size: 11px; color: #555; font-style: italic; margin-top: .15rem; }
 
   body.zen .add-bar input {
     background: transparent; border-radius: 0; font-family: inherit; color: #d4c9b8;
@@ -196,6 +219,8 @@
 
   body.zen .toolbar { margin-bottom: .5rem; }
   body.zen .toolbar-left { display: none; }
+  body.zen .toolbar-right { opacity: 0.3; transition: opacity .2s; }
+  body.zen .toolbar-right:hover { opacity: 1; }
 
   /* Cards → numbered bibliography entries */
   body.zen .item-grid,
@@ -427,38 +452,36 @@
   </div>
 
   <div class="toolbar-right">
-    <button class="btn btn-sm"
-      hx-post="/view-mode" hx-swap="none"
-      hx-on::after-request="location.reload()"
-      title="{{ 'Switch to list view' if view_mode == 'grid' else 'Switch to grid view' }}">
-      {{ '≡ List' if view_mode == 'grid' else '⊞ Grid' }}
-    </button>
+    <div class="toggle-group">
+      <button id="zen-toggle" class="btn btn-sm {{ 'btn-accent' if zen_mode else '' }}"
+        hx-post="/zen-mode" hx-swap="none"
+        hx-on::after-request="location.reload()"
+        title="{{ 'Exit zen mode' if zen_mode else 'Zen — minimal document view' }}">Zen</button>
+      <button id="ai-toggle" class="btn btn-sm {{ 'btn-accent' if ai_mode else '' }}"
+        hx-post="/ai-mode" hx-target="#ai-toggle" hx-swap="outerHTML"
+        title="{{ 'AI on — identifies from descriptions' if ai_mode else 'AI off — direct search only' }}">AI</button>
+      <button id="fast-toggle" class="btn btn-sm {{ 'btn-accent' if fast_mode else '' }}"
+        hx-post="/fast-mode" hx-target="#fast-toggle" hx-swap="outerHTML"
+        title="{{ 'Fast — adds top result immediately' if fast_mode else 'Select — pick from results' }}">
+        {{ 'Fast' if fast_mode else 'Select' }}</button>
+      <button class="btn btn-sm"
+        hx-post="/view-mode" hx-swap="none"
+        hx-on::after-request="location.reload()"
+        title="{{ 'Switch to list view' if view_mode == 'grid' else 'Switch to grid view' }}">
+        {{ '≡' if view_mode == 'grid' else '⊞' }}</button>
+    </div>
     {% if is_book %}
     <button class="btn btn-sm"
       hx-post="/book-api" hx-swap="none"
       hx-on::after-request="location.reload()"
-      title="{{ 'Switch to Open Library' if book_api == 'gb' else 'Switch to Google Books' }}">
-      {{ 'OL' if book_api == 'gb' else 'GB' }}
+      style="font-size:11px"
+      title="Switch to {{ 'Open Library' if book_api == 'gb' else 'Google Books' }}">
+      {{ 'Google Books' if book_api == 'gb' else 'Open Library' }}
     </button>
     {% endif %}
-    <button id="zen-toggle" class="btn btn-sm {{ 'btn-accent' if zen_mode else '' }}"
-      hx-post="/zen-mode" hx-swap="none"
-      hx-on::after-request="location.reload()"
-      title="{{ 'Zen mode on — minimal document view' if zen_mode else 'Zen mode — LaTeX document view' }}">
-      {{ '◈ Zen' if zen_mode else 'Zen' }}
-    </button>
-    <button id="ai-toggle" class="btn btn-sm {{ 'btn-accent' if ai_mode else '' }}"
-      hx-post="/ai-mode" hx-target="#ai-toggle" hx-swap="outerHTML"
-      title="{{ 'AI mode on — identifies titles and descriptions' if ai_mode else 'AI mode off — direct search only' }}">
-      {{ '🤖 AI' if ai_mode else 'AI' }}
-    </button>
-    <button id="fast-toggle" class="btn btn-sm {{ 'btn-accent' if fast_mode else '' }}"
-      hx-post="/fast-mode" hx-target="#fast-toggle" hx-swap="outerHTML"
-      title="{{ 'Fast mode on — top result added immediately' if fast_mode else 'Select mode — pick from results' }}">
-      {{ '⚡ Fast' if fast_mode else 'Select' }}
-    </button>
-    <a class="btn btn-sm" href="/export?format=csv&section={{ export_section }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}">CSV</a>
-    <a class="btn btn-sm" href="/export?format=json&section={{ export_section }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}">JSON</a>
+    <span class="toolbar-sep"></span>
+    <a class="util-link" href="/export?format=csv&section={{ export_section }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}">CSV</a>
+    <a class="util-link" href="/export?format=json&section={{ export_section }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}">JSON</a>
     <button class="btn btn-sm btn-danger"
       hx-delete="/items?section={{ export_section }}"
       hx-target="#grid-container" hx-swap="innerHTML"
@@ -469,7 +492,6 @@
 </div>
 
 <div class="zen-doc-header">
-  <div class="zen-doc-title">MediaTriage</div>
   <div class="zen-doc-sub">{{ 'Reading List' if is_book else 'Watchlist' }}</div>
   <div class="zen-doc-sub">{{ zen_date }}</div>
 </div>
