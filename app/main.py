@@ -29,7 +29,7 @@ from .db import (
     upsert_item,
     get_db,
 )
-from .enrich import enrich_item, _ai_tags, call_ai
+from .enrich import enrich_item, _ai_tags, call_ai, ai_log
 from . import tmdb, googlebooks, openlibrary
 from .scraper import scrape_url
 
@@ -525,6 +525,22 @@ async def remove_all_items(request: Request, section: str = "film"):
     with get_db() as conn:
         delete_all_items(conn, section=section)
     return await _render_grid(request, section)
+
+
+# ── AI log ────────────────────────────────────────────────────────────────────
+
+@app.get("/ai-log", response_class=HTMLResponse)
+async def view_ai_log(request: Request):
+    entries = list(reversed(ai_log))
+    if request.headers.get("HX-Request"):
+        return templates.TemplateResponse(
+            "partials/ai_log_entries.html",
+            {"request": request, "entries": entries},
+        )
+    return templates.TemplateResponse(
+        "ai_log.html",
+        {"request": request, "entries": entries, "section": ""},
+    )
 
 
 # ── Export ────────────────────────────────────────────────────────────────────
