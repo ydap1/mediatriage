@@ -86,4 +86,18 @@
       </div>
     {% endif %}
   </div>
+
+  <div class="zen-actions" onclick="event.stopPropagation()">
+    {% if item.status not in ('pending', 'failed') %}
+    <button class="btn btn-sm"
+      hx-post="/items/{{ item.id }}/toggle-watched"
+      hx-target="#item-{{ item.id }}" hx-swap="outerHTML">
+      {% if section == 'book' %}{{ '↩' if item.status == 'watched' else '✓' }}{% else %}{{ '↩' if item.status == 'watched' else '✓' }}{% endif %}
+    </button>
+    {% endif %}
+    <button class="btn btn-sm btn-danger"
+      hx-delete="/items/{{ item.id }}"
+      hx-target="#item-{{ item.id }}" hx-swap="outerHTML"
+      hx-confirm="Remove '{{ item.title }}'?">×</button>
+  </div>
 </div>
