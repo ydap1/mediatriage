@@ -4,6 +4,7 @@ import json
 import logging
 import math
 import urllib.parse
+from datetime import date
 from typing import Annotated
 
 from fastapi import BackgroundTasks, FastAPI, Form, Request, Response
@@ -59,8 +60,10 @@ def _grid_ctx(request, items, total, page, all_genres, filters, sort_by, section
         "image_base": settings.tmdb_image_base,
         "fast_mode": request.cookies.get("mt_fast") != "0",
         "ai_mode": request.cookies.get("mt_ai") != "0",
+        "zen_mode": request.cookies.get("mt_zen") == "1",
         "view_mode": request.cookies.get("mt_view", "grid"),
         "book_api": request.cookies.get("mt_book_api", "gb"),
+        "zen_date": date.today().strftime("%B %Y"),
     }
 
 
@@ -127,6 +130,10 @@ def _is_fast_mode(request: Request) -> bool:
 
 def _is_ai_mode(request: Request) -> bool:
     return request.cookies.get("mt_ai") != "0"
+
+
+def _is_zen_mode(request: Request) -> bool:
+    return request.cookies.get("mt_zen") == "1"
 
 
 def _empty_filters():
@@ -401,6 +408,17 @@ async def toggle_ai_mode(request: Request):
         response.set_cookie("mt_ai", "0", max_age=365 * 86400, httponly=True, samesite="lax")
     else:
         response.delete_cookie("mt_ai")
+    return response
+
+
+@app.post("/zen-mode", response_class=HTMLResponse)
+async def toggle_zen_mode(request: Request):
+    new_zen = not _is_zen_mode(request)
+    response = HTMLResponse("")
+    if new_zen:
+        response.set_cookie("mt_zen", "1", max_age=365 * 86400, httponly=True, samesite="lax")
+    else:
+        response.delete_cookie("mt_zen")
     return response
 
 
