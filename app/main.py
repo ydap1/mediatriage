@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import io
 import json
@@ -29,7 +30,7 @@ from .db import (
     upsert_item,
     get_db,
 )
-from .enrich import enrich_item, _ai_tags, call_ai, ai_log
+from .enrich import enrich_item, _ai_tags, call_ai, call_ai_multi, ai_log
 from . import tmdb, googlebooks, openlibrary
 from .scraper import scrape_url
 
@@ -42,6 +43,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 templates = Jinja2Templates(directory="app/templates")
 templates.env.filters["urlencode"] = lambda s: urllib.parse.quote_plus(s or "")
+templates.env.filters["tojson"] = lambda v: json.dumps(v, ensure_ascii=False)
 
 PAGE_SIZE = 24
 
@@ -211,14 +213,22 @@ async def add_film(request: Request, background_tasks: BackgroundTasks, input: A
     ai = _is_ai_mode(request)
 
     if not fast:
-        search_title = raw_title
+        candidates = []
         if ai:
             try:
-                extracted = await call_ai(raw_title, mode="film")
-                search_title = extracted.get("title") or raw_title
+                ai_results = await call_ai_multi(raw_title, mode="film")
+                if len(ai_results) > 1:
+                    matches = await asyncio.gather(*[
+                        tmdb.search_one(r["title"], r.get("media_type"), year=r.get("year"))
+                        for r in ai_results[:8] if r.get("title")
+                    ])
+                    candidates = [m for m in matches if m]
+                elif ai_results:
+                    candidates = await tmdb.search_multi(ai_results[0].get("title") or raw_title)
             except Exception:
                 pass
-        candidates = await tmdb.search_multi(search_title)
+        if not candidates:
+            candidates = await tmdb.search_multi(raw_title)
         return _search_result_response(request, candidates, input, "film")
 
     match = await tmdb.search(raw_title)
@@ -528,6 +538,15 @@ async def remove_all_items(request: Request, section: str = "film"):
 
 
 # ── AI log ────────────────────────────────────────────────────────────────────
+
+@app.get("/ai-log/entries", response_class=HTMLResponse)
+async def ai_log_entries_compact(request: Request):
+    entries = list(reversed(ai_log))
+    return templates.TemplateResponse(
+        "partials/ai_log_compact.html",
+        {"request": request, "entries": entries},
+    )
+
 
 @app.get("/ai-log", response_class=HTMLResponse)
 async def view_ai_log(request: Request):
