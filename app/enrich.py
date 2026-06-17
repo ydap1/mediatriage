@@ -71,6 +71,60 @@ async def call_ai(raw_input: str, mode: str = "film") -> dict:
         })
 
 
+async def call_ai_multi(raw_input: str, mode: str = "film") -> list[dict]:
+    """Like call_ai but returns a list — supports 'movies by X' style queries."""
+    if mode == "book":
+        result = await call_ai(raw_input, mode="book")
+        return [result]
+
+    prompt = (
+        'Identify the film(s) or TV show(s) being referenced or described. '
+        'If the input is a single title or description, return one item. '
+        'If the input asks for multiple (e.g. "movies by X", "best films about Y", a query in any language): '
+        'return all relevant titles up to 8. '
+        'Return ONLY valid JSON: '
+        '{"results": [{"title": "<exact title>", "media_type": "movie" or "tv", "year": <integer or null>}, ...]}.\n\n'
+        f'Input: {raw_input}'
+    )
+
+    t0 = time.monotonic()
+    result = None
+    error = None
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.openrouter_api_key}",
+                    "HTTP-Referer": "https://mediatriage",
+                },
+                json={
+                    "model": settings.openrouter_model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "response_format": {"type": "json_object"},
+                },
+            )
+            resp.raise_for_status()
+        content = resp.json()["choices"][0]["message"]["content"]
+        parsed = json.loads(content)
+        result = parsed.get("results", [parsed] if "title" in parsed else [])
+        log.info("OpenRouter multi | %d results", len(result))
+        return result
+    except Exception as e:
+        error = str(e)
+        raise
+    finally:
+        ai_log.append({
+            "ts": datetime.now().strftime("%H:%M:%S"),
+            "mode": mode,
+            "input": raw_input,
+            "prompt": prompt,
+            "response": result,
+            "duration_ms": int((time.monotonic() - t0) * 1000),
+            "error": error,
+        })
+
+
 async def _ai_tags(title: str, overview: str, genres: list[str]) -> list[str]:
     """Generate vibe tags via OpenRouter. Returns [] on failure."""
     if not settings.enable_ai_tags or not settings.openrouter_api_key:
