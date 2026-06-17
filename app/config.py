@@ -41,6 +41,9 @@ class Settings:
     login_rate_limit: str = field(
         default_factory=lambda: os.environ.get("LOGIN_RATE_LIMIT", "10/minute")
     )
+    watch_region: str = field(
+        default_factory=lambda: os.environ.get("WATCH_REGION", "US")
+    )
 
 
 settings = Settings()
