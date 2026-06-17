@@ -1,7 +1,7 @@
 {% set is_book = section == 'book' %}
 {% set base_url = '/books/' if is_book else '/' %}
 
-{% if view_mode == 'list' %}
+{% if view_mode == 'list' and not zen_mode %}
 <div class="item-list" id="item-grid">
   {% for item in items %}
     {% include "partials/item_row.html" %}
