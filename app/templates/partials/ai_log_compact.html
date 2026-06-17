@@ -1,0 +1,26 @@
+{% if not entries %}
+<div style="padding:.5rem .75rem;color:#2a2a2a">No AI calls yet.</div>
+{% else %}
+{% for e in entries %}
+<div style="padding:.45rem .75rem;border-bottom:1px solid #0d0d0d">
+  <div style="display:flex;gap:.65rem;align-items:baseline;margin-bottom:.2rem">
+    <span style="color:#333;min-width:4.5rem;flex-shrink:0">{{ e.ts }}</span>
+    <span style="color:{% if e.mode == 'film' %}#7a3a10{% elif e.mode == 'book' %}#1a4a7a{% else %}#4a4a22{% endif %}">{{ e.mode }}</span>
+    <span style="color:#2a2a2a">{{ e.duration_ms }}ms</span>
+    {% if e.error %}<span style="color:#7a2222">ERR</span>{% endif %}
+  </div>
+  <div style="color:#555;margin-bottom:.2rem;word-break:break-word">›&nbsp;{{ e.input[:100] }}{% if e.input | length > 100 %}…{% endif %}</div>
+  {% if e.prompt %}
+  <details style="margin-bottom:.2rem">
+    <summary style="color:#333;cursor:pointer;font-size:10px;list-style:none;outline:none">prompt</summary>
+    <div style="color:#2e2e2e;white-space:pre-wrap;margin-top:.2rem;padding:.3rem .4rem;background:#060606;border-radius:3px;word-break:break-word">{{ e.prompt }}</div>
+  </details>
+  {% endif %}
+  {% if e.error %}
+  <div style="color:#7a3333;word-break:break-word">{{ e.error[:150] }}</div>
+  {% elif e.response is not none %}
+  <div style="color:#2e6640;word-break:break-all">←&nbsp;{{ e.response | tojson | truncate(200, killwords=True, end='…') }}</div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
