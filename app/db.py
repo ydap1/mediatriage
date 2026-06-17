@@ -6,7 +6,7 @@ from typing import Any
 
 from .config import settings
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _SORT_MAP = {
     "date_added": "i.date_added DESC",
@@ -89,15 +89,23 @@ def _migrate_v1_to_v2(conn: sqlite3.Connection) -> None:
     conn.execute("ALTER TABLE items ADD COLUMN authors TEXT DEFAULT '[]'")
 
 
+def _migrate_v2_to_v3(conn: sqlite3.Connection) -> None:
+    conn.execute("ALTER TABLE items ADD COLUMN watch_providers TEXT DEFAULT '[]'")
+
+
 def init_db() -> None:
     Path(settings.db_path).parent.mkdir(parents=True, exist_ok=True)
     with get_db() as conn:
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         if version == 0:
             _create_schema(conn)
+            _migrate_v2_to_v3(conn)
         elif version == 1:
             _migrate_v1_to_v2(conn)
+            _migrate_v2_to_v3(conn)
         elif version == 2:
+            _migrate_v2_to_v3(conn)
+        elif version == 3:
             pass
         else:
             raise RuntimeError(
@@ -112,6 +120,7 @@ def row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     d["genres"] = json.loads(d.get("genres") or "[]")
     d["ai_tags"] = json.loads(d.get("ai_tags") or "[]")
     d["authors"] = json.loads(d.get("authors") or "[]")
+    d["watch_providers"] = json.loads(d.get("watch_providers") or "[]")
     return d
 
 
@@ -119,10 +128,10 @@ def insert_item(conn: sqlite3.Connection, data: dict) -> int:
     cur = conn.execute(
         """INSERT INTO items
            (title, section, tmdb_id, ol_key, media_type, genres, authors,
-            poster_path, og_image, overview, release_year, source_url, status, ai_tags)
+            poster_path, og_image, overview, release_year, source_url, status, ai_tags, watch_providers)
            VALUES
            (:title, :section, :tmdb_id, :ol_key, :media_type, :genres, :authors,
-            :poster_path, :og_image, :overview, :release_year, :source_url, :status, :ai_tags)""",
+            :poster_path, :og_image, :overview, :release_year, :source_url, :status, :ai_tags, :watch_providers)""",
         {
             "title": data.get("title", ""),
             "section": data.get("section", "film"),
@@ -138,6 +147,7 @@ def insert_item(conn: sqlite3.Connection, data: dict) -> int:
             "source_url": data.get("source_url"),
             "status": data.get("status", "to_watch"),
             "ai_tags": json.dumps(data.get("ai_tags", [])),
+            "watch_providers": json.dumps(data.get("watch_providers", [])),
         },
     )
     return cur.lastrowid
@@ -169,7 +179,7 @@ def upsert_item(conn: sqlite3.Connection, data: dict) -> tuple[int, bool]:
 
 def update_item(conn: sqlite3.Connection, item_id: int, data: dict) -> None:
     fields = {k: v for k, v in data.items() if k != "id"}
-    for list_field in ("genres", "ai_tags", "authors"):
+    for list_field in ("genres", "ai_tags", "authors", "watch_providers"):
         if list_field in fields and isinstance(fields[list_field], list):
             fields[list_field] = json.dumps(fields[list_field])
     set_clause = ", ".join(f"{k} = :{k}" for k in fields)
