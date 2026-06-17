@@ -28,7 +28,7 @@ from .db import (
     upsert_item,
     get_db,
 )
-from .enrich import enrich_item, _ai_tags
+from .enrich import enrich_item, _ai_tags, call_ai
 from . import tmdb, googlebooks, openlibrary
 from .scraper import scrape_url
 
@@ -58,6 +58,7 @@ def _grid_ctx(request, items, total, page, all_genres, filters, sort_by, section
         "section": section,
         "image_base": settings.tmdb_image_base,
         "fast_mode": request.cookies.get("mt_fast") != "0",
+        "ai_mode": request.cookies.get("mt_ai") != "0",
         "view_mode": request.cookies.get("mt_view", "grid"),
         "book_api": request.cookies.get("mt_book_api", "gb"),
     }
@@ -121,8 +122,11 @@ def _is_url(value: str) -> bool:
 
 
 def _is_fast_mode(request: Request) -> bool:
-    # Fast is the default; selection mode requires explicit opt-in (cookie = "0")
     return request.cookies.get("mt_fast") != "0"
+
+
+def _is_ai_mode(request: Request) -> bool:
+    return request.cookies.get("mt_ai") != "0"
 
 
 def _empty_filters():
@@ -196,24 +200,38 @@ async def add_film(request: Request, background_tasks: BackgroundTasks, input: A
     else:
         raw_title = input
 
-    if not _is_fast_mode(request):
-        candidates = await tmdb.search_multi(raw_title)
-        return _search_result_response(request, candidates, input, "film")
+    fast = _is_fast_mode(request)
+    ai = _is_ai_mode(request)
 
+    if not fast:
+        search_title = raw_title
+        if ai:
+            try:
+                extracted = await call_ai(raw_title, mode="film")
+                search_title = extracted.get("title") or raw_title
+            except Exception:
+                pass
+        candidates = await tmdb.search_multi(search_title)
+        return _search_result_response(request, candidates, input, "film")
 
     match = await tmdb.search(raw_title)
     if match:
-        ai_tags = await _ai_tags(match["title"], match.get("overview", ""), match.get("genres", []))
+        ai_tags = await _ai_tags(match["title"], match.get("overview", ""), match.get("genres", [])) if ai else []
         data = {**match, "section": "film", "source_url": input if _is_url(input) else None,
                 "og_image": og_image, "status": "to_watch", "ai_tags": ai_tags}
         with get_db() as conn:
             upsert_item(conn, data)
-    else:
+    elif ai:
         data = {"title": raw_title, "section": "film", "source_url": input if _is_url(input) else None,
                 "og_image": og_image, "status": "pending"}
         with get_db() as conn:
             item_id = insert_item(conn, data)
-        background_tasks.add_task(enrich_item, item_id, raw_title, og_image, "film")
+        background_tasks.add_task(enrich_item, item_id, raw_title, og_image, "film", use_ai=True)
+    else:
+        data = {"title": raw_title, "section": "film", "source_url": input if _is_url(input) else None,
+                "og_image": og_image, "status": "failed"}
+        with get_db() as conn:
+            insert_item(conn, data)
 
     return await _render_grid(request, "film")
 
@@ -259,23 +277,38 @@ async def add_book(request: Request, background_tasks: BackgroundTasks, input: A
         raw_title = input
 
     api = request.cookies.get("mt_book_api", "gb")
-    if not _is_fast_mode(request):
-        candidates = await (openlibrary.search_multi if api == "ol" else googlebooks.search_multi)(raw_title)
+    fast = _is_fast_mode(request)
+    ai = _is_ai_mode(request)
+
+    if not fast:
+        search_title = raw_title
+        if ai:
+            try:
+                extracted = await call_ai(raw_title, mode="book")
+                search_title = extracted.get("title") or raw_title
+            except Exception:
+                pass
+        candidates = await (openlibrary.search_multi if api == "ol" else googlebooks.search_multi)(search_title)
         return _search_result_response(request, candidates, input, "book")
 
     match = await (openlibrary.search if api == "ol" else googlebooks.search)(raw_title)
     if match:
-        ai_tags = await _ai_tags(match["title"], match.get("overview", ""), match.get("genres", []))
+        ai_tags = await _ai_tags(match["title"], match.get("overview", ""), match.get("genres", [])) if ai else []
         data = {**match, "section": "book", "source_url": input if _is_url(input) else None,
                 "og_image": og_image, "status": "to_watch", "ai_tags": ai_tags}
         with get_db() as conn:
             upsert_item(conn, data)
-    else:
+    elif ai:
         data = {"title": raw_title, "section": "book", "media_type": "book",
                 "source_url": input if _is_url(input) else None, "og_image": og_image, "status": "pending"}
         with get_db() as conn:
             item_id = insert_item(conn, data)
-        background_tasks.add_task(enrich_item, item_id, raw_title, og_image, "book")
+        background_tasks.add_task(enrich_item, item_id, raw_title, og_image, "book", use_ai=True)
+    else:
+        data = {"title": raw_title, "section": "book", "media_type": "book",
+                "source_url": input if _is_url(input) else None, "og_image": og_image, "status": "failed"}
+        with get_db() as conn:
+            insert_item(conn, data)
 
     return await _render_grid(request, "book")
 
@@ -349,6 +382,25 @@ async def toggle_fast_mode(request: Request):
     else:
         # Return to fast mode (default) — delete the opt-out cookie
         response.delete_cookie("mt_fast")
+    return response
+
+
+@app.post("/ai-mode", response_class=HTMLResponse)
+async def toggle_ai_mode(request: Request):
+    new_ai = not _is_ai_mode(request)
+    label = "🤖 AI" if new_ai else "AI"
+    cls = "btn btn-sm btn-accent" if new_ai else "btn btn-sm"
+    html = (
+        f'<button id="ai-toggle" class="{cls}" '
+        f'hx-post="/ai-mode" hx-target="#ai-toggle" hx-swap="outerHTML" '
+        f'title="{"AI mode: identifies titles and descriptions" if new_ai else "AI mode off: direct search only"}">'
+        f'{label}</button>'
+    )
+    response = HTMLResponse(html)
+    if not new_ai:
+        response.set_cookie("mt_ai", "0", max_age=365 * 86400, httponly=True, samesite="lax")
+    else:
+        response.delete_cookie("mt_ai")
     return response
 
 
