@@ -165,6 +165,128 @@
     .detail-poster { max-height:240px; }
   }
 
+  /* ── Zen mode ── */
+  body.zen {
+    font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+    background: #080808;
+    color: #d4c9b8;
+  }
+  body.zen header { background: #080808; border-bottom-color: #1c1c1c; }
+  body.zen footer { display: none; }
+  body.zen main { max-width: 740px; }
+
+  .zen-doc-header { display: none; text-align: center; padding: 2rem 0 2.5rem; border-bottom: 1px solid #1c1c1c; margin-bottom: 2rem; }
+  body.zen .zen-doc-header { display: block; }
+  .zen-doc-title { font-size: 1.4rem; font-weight: normal; letter-spacing: .06em; }
+  .zen-doc-sub   { font-size: 12px; color: #555; margin-top: .3rem; font-style: italic; }
+
+  body.zen .add-bar input {
+    background: transparent; border-radius: 0; font-family: inherit; color: #d4c9b8;
+    border-top: none; border-left: none; border-right: none; border-bottom-color: #1e1e1e;
+  }
+  body.zen .add-bar input:focus { border-bottom-color: #444; }
+  body.zen .add-bar input::placeholder { color: #3a3a3a; font-style: italic; }
+  body.zen .add-bar .btn-accent,
+  body.zen .add-bar .btn-accent-book {
+    background: transparent; border-color: #2a2a2a; color: #666;
+    font-family: inherit; border-radius: 2px;
+  }
+  body.zen .add-bar .btn-accent:hover,
+  body.zen .add-bar .btn-accent-book:hover { border-color: #555; color: #d4c9b8; background: transparent; }
+
+  body.zen .toolbar { margin-bottom: .5rem; }
+  body.zen .toolbar-left { display: none; }
+
+  /* Cards → numbered bibliography entries */
+  body.zen .item-grid,
+  body.zen .item-list { display: flex; flex-direction: column; gap: 0; counter-reset: zen-counter; }
+
+  body.zen .item-card {
+    background: transparent; border: none; border-bottom: 1px solid #141414;
+    border-radius: 0; overflow: visible;
+    display: flex; flex-direction: row; align-items: flex-start;
+    gap: .65rem; padding: .6rem 0;
+    transition: none; counter-increment: zen-counter;
+  }
+  body.zen .item-card:hover { border-color: #141414; }
+  body.zen .item-card::before {
+    content: "[" counter(zen-counter) "]";
+    color: #444; font-size: 11px; flex-shrink: 0;
+    min-width: 2.4rem; text-align: right; padding-top: .1rem;
+  }
+  body.zen .poster-wrap  { display: none; }
+  body.zen .card-overlay { display: none; }
+
+  body.zen .card-body { padding: 0; flex: 1; cursor: pointer; }
+  body.zen .card-title {
+    display: inline; font-size: 14px; font-weight: bold;
+    white-space: normal; overflow: visible; text-overflow: unset;
+    margin-right: .2rem;
+  }
+  body.zen .card-meta {
+    display: inline; font-size: 12px; color: #666; font-style: italic; margin: 0;
+  }
+  body.zen .card-meta > span:not(:first-child)::before { content: ' · '; color: #333; }
+  body.zen .card-meta .badge {
+    background: transparent; border: none; font-style: italic;
+    color: #666; font-size: 12px; text-transform: lowercase; letter-spacing: 0; padding: 0;
+  }
+  body.zen .card-genres { display: block; margin-top: .2rem; gap: 0; }
+  body.zen .card-genres .genre-tag {
+    background: transparent; border: none; color: #555;
+    font-size: 11px; padding: 0; font-style: italic; border-radius: 0;
+  }
+  body.zen .card-genres .genre-tag:not(:last-child)::after { content: ','; }
+  body.zen .card-genres .ai-tag { color: #554; }
+  body.zen .card-providers { display: none; }
+
+  body.zen .item-watched .card-title { text-decoration: line-through; color: #555; }
+  body.zen .item-watched { opacity: 1; border-color: #141414 !important; }
+  body.zen .item-pending { border-color: #141414 !important; animation: none; }
+  body.zen .item-failed .card-title { color: #665; font-style: italic; }
+  body.zen .badge-pending,
+  body.zen .badge-failed { background: transparent; border: none; font-style: italic; font-size: 10px; }
+
+  /* Per-entry actions (shown on hover) */
+  .zen-actions { display: none; }
+  body.zen .zen-actions {
+    display: flex; gap: .3rem; flex-shrink: 0;
+    opacity: 0; transition: opacity .15s; align-items: flex-start; padding-top: .05rem;
+  }
+  body.zen .item-card:hover .zen-actions { opacity: 1; }
+  body.zen .zen-actions .btn-sm {
+    font-size: 10px; padding: .1rem .4rem;
+    background: transparent; border-color: #232323; color: #666; font-family: inherit;
+  }
+  body.zen .zen-actions .btn-sm:hover { border-color: #555; color: #d4c9b8; background: transparent; }
+  body.zen .zen-actions .btn-danger { border-color: #2a1a1a; color: #665; }
+  body.zen .zen-actions .btn-danger:hover { color: #e88; border-color: #5a2020; background: transparent; }
+
+  /* General button reskin */
+  body.zen .btn { font-family: 'Palatino Linotype', Palatino, Georgia, serif; }
+  body.zen .btn-sm { background: transparent; border-color: #222; color: #666; }
+  body.zen .btn-sm:hover { background: transparent; border-color: #444; color: #d4c9b8; }
+  body.zen .btn-accent {
+    background: transparent; border-color: #444; color: #d4c9b8;
+  }
+
+  /* Pagination */
+  body.zen .pagination { border-top: 1px solid #1c1c1c; padding-top: 1.5rem; margin-top: 2rem; }
+  body.zen .page-info { color: #555; }
+
+  /* Detail modal */
+  body.zen #detail-modal { background: rgba(0,0,0,.95); }
+  body.zen .detail-card {
+    font-family: 'Palatino Linotype', Palatino, Georgia, serif;
+    background: #080808; border-color: #1c1c1c; grid-template-columns: 1fr;
+  }
+  body.zen .detail-poster { display: none; }
+  body.zen .detail-title { font-weight: normal; font-size: 1.2rem; letter-spacing: .02em; }
+  body.zen .detail-overview { color: #999; }
+  body.zen .detail-link { font-family: inherit; background: transparent; }
+  body.zen .detail-providers { display: none; }
+  body.zen .detail-cast { display: none; }
+
   /* Book covers — show full image without cropping */
   .poster-wrap-book img { object-fit: contain; }
   .detail-poster-book img { object-fit: contain; }
@@ -319,6 +441,12 @@
       {{ 'OL' if book_api == 'gb' else 'GB' }}
     </button>
     {% endif %}
+    <button id="zen-toggle" class="btn btn-sm {{ 'btn-accent' if zen_mode else '' }}"
+      hx-post="/zen-mode" hx-swap="none"
+      hx-on::after-request="location.reload()"
+      title="{{ 'Zen mode on — minimal document view' if zen_mode else 'Zen mode — LaTeX document view' }}">
+      {{ '◈ Zen' if zen_mode else 'Zen' }}
+    </button>
     <button id="ai-toggle" class="btn btn-sm {{ 'btn-accent' if ai_mode else '' }}"
       hx-post="/ai-mode" hx-target="#ai-toggle" hx-swap="outerHTML"
       title="{{ 'AI mode on — identifies titles and descriptions' if ai_mode else 'AI mode off — direct search only' }}">
@@ -338,6 +466,12 @@
       Delete all
     </button>
   </div>
+</div>
+
+<div class="zen-doc-header">
+  <div class="zen-doc-title">MediaTriage</div>
+  <div class="zen-doc-sub">{{ 'Reading List' if is_book else 'Watchlist' }}</div>
+  <div class="zen-doc-sub">{{ zen_date }}</div>
 </div>
 
 <div id="grid-container">
