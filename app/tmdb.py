@@ -57,6 +57,25 @@ def _parse_result(result: dict) -> dict:
     }
 
 
+async def _fetch_watch_providers(client: httpx.AsyncClient, tmdb_id: int, media_type: str) -> list[dict]:
+    data = await _get(client, f"/{media_type}/{tmdb_id}/watch/providers")
+    region_data = (data or {}).get("results", {}).get(settings.watch_region, {})
+    providers = []
+    seen = set()
+    for ptype in ("flatrate", "rent", "buy"):
+        for p in region_data.get(ptype, []):
+            pid = p["provider_id"]
+            if pid not in seen:
+                seen.add(pid)
+                providers.append({
+                    "provider_id": pid,
+                    "provider_name": p["provider_name"],
+                    "logo_path": p.get("logo_path", ""),
+                    "type": ptype,
+                })
+    return providers
+
+
 async def get_details(tmdb_id: int, media_type: str) -> dict | None:
     """Fetch full details + credits for a known TMDb item."""
     async with httpx.AsyncClient() as client:
@@ -85,6 +104,7 @@ async def get_details(tmdb_id: int, media_type: str) -> dict | None:
             directors = [c["name"] for c in data.get("created_by", [])]
 
         vote = data.get("vote_average")
+        watch_providers = await _fetch_watch_providers(client, tmdb_id, media_type)
         return {
             "title": title,
             "tmdb_id": tmdb_id,
@@ -101,6 +121,7 @@ async def get_details(tmdb_id: int, media_type: str) -> dict | None:
             "cast": cast,
             "directors": directors,
             "imdb_id": data.get("imdb_id"),
+            "watch_providers": watch_providers,
         }
 
 
@@ -122,7 +143,9 @@ async def search(title: str, media_type: str | None = None, year: int | None = N
             if results:
                 r = results[0]
                 r["media_type"] = media_type
-                return _parse_result(r)
+                parsed = _parse_result(r)
+                parsed["watch_providers"] = await _fetch_watch_providers(client, parsed["tmdb_id"], media_type)
+                return parsed
 
         data = await _get(client, "/search/multi", query=title)
         results = [
@@ -133,7 +156,9 @@ async def search(title: str, media_type: str | None = None, year: int | None = N
             return None
 
         best = results[0]
-        return _parse_result(best)
+        parsed = _parse_result(best)
+        parsed["watch_providers"] = await _fetch_watch_providers(client, parsed["tmdb_id"], parsed["media_type"])
+        return parsed
 
 
 async def search_multi(title: str, limit: int = 5) -> list[dict]:
