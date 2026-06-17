@@ -1,5 +1,9 @@
 import json
 import logging
+import time
+from collections import deque
+from datetime import datetime
+
 import httpx
 
 from .config import settings
@@ -8,6 +12,8 @@ from . import tmdb
 from . import googlebooks
 
 log = logging.getLogger("mediatriage.enrich")
+
+ai_log: deque = deque(maxlen=100)
 
 
 async def call_ai(raw_input: str, mode: str = "film") -> dict:
@@ -28,35 +34,9 @@ async def call_ai(raw_input: str, mode: str = "film") -> dict:
         )
 
     log.info("OpenRouter request | model=%s | mode=%s | input=%r", settings.openrouter_model, mode, raw_input)
-    async with httpx.AsyncClient(timeout=8) as client:
-        resp = await client.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {settings.openrouter_api_key}",
-                "HTTP-Referer": "https://mediatriage",
-            },
-            json={
-                "model": settings.openrouter_model,
-                "messages": [{"role": "user", "content": prompt}],
-                "response_format": {"type": "json_object"},
-            },
-        )
-        resp.raise_for_status()
-    content = resp.json()["choices"][0]["message"]["content"]
-    result = json.loads(content)
-    log.info("OpenRouter response | %s", result)
-    return result
-
-
-async def _ai_tags(title: str, overview: str, genres: list[str]) -> list[str]:
-    """Generate vibe tags via OpenRouter. Returns [] on failure."""
-    if not settings.enable_ai_tags or not settings.openrouter_api_key:
-        return []
-    prompt = (
-        f'Generate 3-5 short vibe/mood tags for this title. '
-        f'Return ONLY valid JSON: {{"tags": ["tag1", "tag2", ...]}}.\n\n'
-        f'Title: {title}\nGenres: {", ".join(genres)}\nOverview: {overview or "N/A"}'
-    )
+    t0 = time.monotonic()
+    result = None
+    error = None
     try:
         async with httpx.AsyncClient(timeout=8) as client:
             resp = await client.post(
@@ -73,9 +53,67 @@ async def _ai_tags(title: str, overview: str, genres: list[str]) -> list[str]:
             )
             resp.raise_for_status()
         content = resp.json()["choices"][0]["message"]["content"]
-        return json.loads(content).get("tags", [])
-    except Exception:
+        result = json.loads(content)
+        log.info("OpenRouter response | %s", result)
+        return result
+    except Exception as e:
+        error = str(e)
+        raise
+    finally:
+        ai_log.append({
+            "ts": datetime.now().strftime("%H:%M:%S"),
+            "mode": mode,
+            "input": raw_input,
+            "prompt": prompt,
+            "response": result,
+            "duration_ms": int((time.monotonic() - t0) * 1000),
+            "error": error,
+        })
+
+
+async def _ai_tags(title: str, overview: str, genres: list[str]) -> list[str]:
+    """Generate vibe tags via OpenRouter. Returns [] on failure."""
+    if not settings.enable_ai_tags or not settings.openrouter_api_key:
         return []
+    prompt = (
+        f'Generate 3-5 short vibe/mood tags for this title. '
+        f'Return ONLY valid JSON: {{"tags": ["tag1", "tag2", ...]}}.\n\n'
+        f'Title: {title}\nGenres: {", ".join(genres)}\nOverview: {overview or "N/A"}'
+    )
+    t0 = time.monotonic()
+    result = None
+    error = None
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.openrouter_api_key}",
+                    "HTTP-Referer": "https://mediatriage",
+                },
+                json={
+                    "model": settings.openrouter_model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "response_format": {"type": "json_object"},
+                },
+            )
+            resp.raise_for_status()
+        content = resp.json()["choices"][0]["message"]["content"]
+        result = json.loads(content).get("tags", [])
+        return result
+    except Exception as e:
+        error = str(e)
+        return []
+    finally:
+        ai_log.append({
+            "ts": datetime.now().strftime("%H:%M:%S"),
+            "mode": "tags",
+            "input": title,
+            "prompt": prompt,
+            "response": {"tags": result},
+            "duration_ms": int((time.monotonic() - t0) * 1000),
+            "error": error,
+        })
 
 
 async def enrich_item(item_id: int, raw_input: str, og_image: str | None, section: str = "film", use_ai: bool = True) -> None:
