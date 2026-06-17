@@ -1,0 +1,35 @@
+{% if not entries %}
+<p class="log-empty">No AI calls yet. Add a film or book to see logs here.</p>
+{% else %}
+{% for entry in entries %}
+<div class="log-entry {% if entry.error %}log-entry-error{% endif %}">
+  <div class="log-meta">
+    <span class="log-ts">{{ entry.ts }}</span>
+    <span class="log-mode log-mode-{{ entry.mode }}">{{ entry.mode }}</span>
+    <span class="log-dur">{{ entry.duration_ms }}ms</span>
+    {% if entry.error %}<span class="log-badge-error">error</span>{% endif %}
+  </div>
+
+  <div class="log-input">
+    <span class="log-label">input</span>
+    <span class="log-input-val">{{ entry.input }}</span>
+  </div>
+
+  <details class="log-details">
+    <summary>prompt</summary>
+    <pre class="log-pre">{{ entry.prompt }}</pre>
+  </details>
+
+  <details class="log-details" {% if entry.response or entry.error %}open{% endif %}>
+    <summary>response</summary>
+    {% if entry.error %}
+    <pre class="log-pre log-pre-error">{{ entry.error }}</pre>
+    {% elif entry.response %}
+    <pre class="log-pre log-pre-ok">{{ entry.response | tojson(indent=2) }}</pre>
+    {% else %}
+    <pre class="log-pre log-pre-error">no response</pre>
+    {% endif %}
+  </details>
+</div>
+{% endfor %}
+{% endif %}

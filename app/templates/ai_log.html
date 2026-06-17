@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}AI Log — MediaTriage{% endblock %}
+
+{% block head %}
+<style>
+  .log-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .log-header h1 { font-size: 1rem; font-weight: 600; color: var(--text-muted); letter-spacing: .04em; text-transform: uppercase; }
+  .log-count { font-size: 12px; color: var(--text-muted); }
+
+  .log-empty { color: var(--text-muted); font-size: 13px; padding: 3rem 0; text-align: center; }
+
+  .log-entry {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: .85rem 1rem;
+    margin-bottom: .5rem;
+    font-size: 13px;
+  }
+  .log-entry-error { border-color: #5a2020; }
+
+  .log-meta {
+    display: flex; align-items: center; gap: .6rem;
+    margin-bottom: .55rem;
+  }
+  .log-ts { font-family: monospace; font-size: 12px; color: var(--text-muted); }
+  .log-mode {
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+    padding: .1rem .4rem; border-radius: 3px; border: 1px solid;
+  }
+  .log-mode-film  { color: #e85d04; border-color: #5a2010; background: #1a0a00; }
+  .log-mode-book  { color: #2d7dd2; border-color: #102040; background: #001020; }
+  .log-mode-tags  { color: #a88;    border-color: #443;    background: #221;    }
+  .log-dur { font-family: monospace; font-size: 11px; color: var(--text-muted); }
+  .log-badge-error {
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+    padding: .1rem .4rem; border-radius: 3px;
+    color: #e88; border: 1px solid #633; background: #1a0000;
+  }
+
+  .log-input {
+    display: flex; align-items: baseline; gap: .5rem;
+    margin-bottom: .5rem;
+  }
+  .log-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--text-muted); flex-shrink: 0;
+  }
+  .log-input-val { color: var(--text); }
+
+  .log-details { margin-top: .4rem; }
+  .log-details summary {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--text-muted); cursor: pointer; user-select: none;
+    padding: .2rem 0;
+  }
+  .log-details summary:hover { color: var(--text); }
+  .log-details[open] summary { margin-bottom: .35rem; }
+
+  .log-pre {
+    font-family: 'SF Mono', 'Fira Mono', 'Consolas', monospace;
+    font-size: 12px; line-height: 1.55;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 4px; padding: .6rem .8rem;
+    overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+    color: #ccc;
+  }
+  .log-pre-ok    { color: #8c8; border-color: #1a3a1a; background: #0a160a; }
+  .log-pre-error { color: #e88; border-color: #3a1a1a; background: #160a0a; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="log-header">
+  <h1>AI Log</h1>
+  <span class="log-count" id="log-count">{{ entries | length }} call{{ 's' if entries | length != 1 }}</span>
+</div>
+
+<div id="log-entries"
+  hx-get="/ai-log"
+  hx-trigger="every 3s"
+  hx-swap="innerHTML"
+  hx-target="#log-entries">
+  {% include "partials/ai_log_entries.html" %}
+</div>
+{% endblock %}
