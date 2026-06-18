@@ -122,6 +122,14 @@
     }
   </style>
   {% block head %}{% endblock %}
+  <style>
+    body.zen .logo span { color: inherit; }
+    body.zen .nav-tab.active,
+    body.zen .nav-tab.active-book { border-bottom-color: transparent; color: #555; }
+    body.zen .nav-tab:hover { color: #888; }
+    body.zen header a { color: #555; }
+    body.zen header a:hover { color: #d4c9b8; }
+  </style>
 </head>
 <body{% if zen_mode %} class="zen"{% endif %}>
   <header>
