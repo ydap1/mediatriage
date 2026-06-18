@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import time
@@ -38,18 +39,22 @@ async def call_ai(raw_input: str, mode: str = "film") -> dict:
     result = None
     error = None
     try:
-        async with httpx.AsyncClient(timeout=8) as client:
-            resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.openrouter_api_key}",
-                    "HTTP-Referer": "https://mediatriage",
-                },
-                json={
-                    "model": settings.openrouter_model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "response_format": {"type": "json_object"},
-                },
+        async with httpx.AsyncClient() as client:
+            resp = await asyncio.wait_for(
+                client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {settings.openrouter_api_key}",
+                        "HTTP-Referer": "https://mediatriage",
+                    },
+                    json={
+                        "model": settings.openrouter_model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "response_format": {"type": "json_object"},
+                    },
+                    timeout=12,
+                ),
+                timeout=15.0,
             )
             resp.raise_for_status()
         content = resp.json()["choices"][0]["message"]["content"]
@@ -91,18 +96,22 @@ async def call_ai_multi(raw_input: str, mode: str = "film") -> list[dict]:
     result = None
     error = None
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.openrouter_api_key}",
-                    "HTTP-Referer": "https://mediatriage",
-                },
-                json={
-                    "model": settings.openrouter_model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "response_format": {"type": "json_object"},
-                },
+        async with httpx.AsyncClient() as client:
+            resp = await asyncio.wait_for(
+                client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {settings.openrouter_api_key}",
+                        "HTTP-Referer": "https://mediatriage",
+                    },
+                    json={
+                        "model": settings.openrouter_model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "response_format": {"type": "json_object"},
+                    },
+                    timeout=20,
+                ),
+                timeout=25.0,
             )
             resp.raise_for_status()
         content = resp.json()["choices"][0]["message"]["content"]
