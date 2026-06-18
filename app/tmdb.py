@@ -34,10 +34,6 @@ def _resolve_genres(genre_ids: list[int], media_type: str) -> list[str]:
     return [cache[gid] for gid in genre_ids if gid in cache]
 
 
-def _has_cyrillic(text: str) -> bool:
-    return any('Ѐ' <= c <= 'ӿ' for c in text)
-
-
 def _extract_year(date_str: str | None) -> int | None:
     if date_str and len(date_str) >= 4:
         try:
@@ -50,10 +46,12 @@ def _extract_year(date_str: str | None) -> int | None:
 def _parse_result(result: dict) -> dict:
     media_type = result.get("media_type", "movie")
     title = result.get("title") or result.get("name") or ""
+    original_title = result.get("original_title") or result.get("original_name") or title
     date = result.get("release_date") or result.get("first_air_date")
     genres = _resolve_genres(result.get("genre_ids", []), media_type)
     return {
         "title": title,
+        "original_title": original_title,
         "tmdb_id": result.get("id"),
         "media_type": media_type,
         "genres": genres,
@@ -118,9 +116,11 @@ async def get_details(tmdb_id: int, media_type: str) -> dict | None:
         else:
             directors = [c["name"] for c in data.get("created_by", [])]
 
+        original_title = data.get("original_title") or data.get("original_name") or title
         vote = data.get("vote_average")
         return {
             "title": title,
+            "original_title": original_title,
             "tmdb_id": tmdb_id,
             "media_type": media_type,
             "genres": genres,
@@ -138,20 +138,24 @@ async def get_details(tmdb_id: int, media_type: str) -> dict | None:
         }
 
 
+async def fetch_directors(tmdb_id: int, media_type: str) -> list[str]:
+    async with httpx.AsyncClient() as client:
+        return await _fetch_directors(client, tmdb_id, media_type)
+
+
 async def search(title: str, media_type: str | None = None, year: int | None = None) -> dict | None:
     """Return best TMDb match for a title, or None if no confident match."""
     async with httpx.AsyncClient() as client:
         await _load_genres(client)
 
         if media_type in ("movie", "tv"):
-            lang = {"language": "ru"} if _has_cyrillic(title) else {}
-            extra = dict(lang)
+            extra = {}
             if year:
-                extra.update({"primary_release_year": year} if media_type == "movie" else {"first_air_date_year": year})
+                extra = {"primary_release_year": year} if media_type == "movie" else {"first_air_date_year": year}
             data = await _get(client, f"/search/{media_type}", query=title, **extra)
             results = (data or {}).get("results", [])
             if not results and year:
-                data = await _get(client, f"/search/{media_type}", query=title, **lang)
+                data = await _get(client, f"/search/{media_type}", query=title)
                 results = (data or {}).get("results", [])
             if results:
                 r = results[0]
@@ -178,16 +182,15 @@ async def search_one(title: str, media_type: str | None = None, year: int | None
     """Best TMDb match without fetching directors — for building candidate lists."""
     async with httpx.AsyncClient() as client:
         await _load_genres(client)
-        lang = {"language": "ru"} if _has_cyrillic(title) else {}
 
         if media_type in ("movie", "tv"):
-            extra = dict(lang)
+            extra = {}
             if year:
-                extra.update({"primary_release_year": year} if media_type == "movie" else {"first_air_date_year": year})
+                extra = {"primary_release_year": year} if media_type == "movie" else {"first_air_date_year": year}
             data = await _get(client, f"/search/{media_type}", query=title, **extra)
             results = (data or {}).get("results", [])
             if not results and year:
-                data = await _get(client, f"/search/{media_type}", query=title, **lang)
+                data = await _get(client, f"/search/{media_type}", query=title)
                 results = (data or {}).get("results", [])
             if results:
                 r = results[0]
