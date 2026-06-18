@@ -54,7 +54,12 @@
     hx-swap="innerHTML"
     hx-trigger="click"
     style="cursor:pointer">
-    <div class="card-title" title="{{ item.title }}">{{ item.title }}</div>
+    <div class="card-title" title="{{ item.title }}">
+      <span class="title-en">{{ item.title }}</span>
+      {% if item.original_title and item.original_title != item.title %}
+      <span class="title-orig">{{ item.original_title }}</span>
+      {% endif %}
+    </div>
     <div class="card-meta">
       {% if item.release_year %}<span>{{ item.release_year }}</span>{% endif %}
       {% if item.media_type and item.media_type != 'book' %}<span class="badge">{{ item.media_type }}</span>{% endif %}
@@ -77,16 +82,28 @@
       </div>
     {% endif %}
     {% if item.directors %}
-      <div class="zen-director">{{ item.directors | join(', ') }}</div>
+      <div class="zen-director">Dir. {{ item.directors[0] }}</div>
     {% endif %}
   </div>
 
+  {% if item.status == 'pending' %}
+  <div class="card-stop" onclick="event.stopPropagation()">
+    <button class="btn btn-sm"
+      hx-post="/items/{{ item.id }}/cancel"
+      hx-target="#item-{{ item.id }}" hx-swap="outerHTML">Stop</button>
+  </div>
+  {% endif %}
+
   <div class="zen-actions" onclick="event.stopPropagation()">
-    {% if item.status not in ('pending', 'failed') %}
+    {% if item.status == 'pending' %}
+    <button class="btn btn-sm"
+      hx-post="/items/{{ item.id }}/cancel"
+      hx-target="#item-{{ item.id }}" hx-swap="outerHTML">Stop</button>
+    {% elif item.status != 'failed' %}
     <button class="btn btn-sm"
       hx-post="/items/{{ item.id }}/toggle-watched"
       hx-target="#item-{{ item.id }}" hx-swap="outerHTML">
-      {% if section == 'book' %}{{ '↩' if item.status == 'watched' else '✓' }}{% else %}{{ '↩' if item.status == 'watched' else '✓' }}{% endif %}
+      {{ '↩' if item.status == 'watched' else '✓' }}
     </button>
     {% endif %}
     <button class="btn btn-sm btn-danger"
