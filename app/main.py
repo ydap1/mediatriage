@@ -374,6 +374,8 @@ async def confirm_item(
     else:
         data["tmdb_id"] = int(tmdb_id) if tmdb_id.isdigit() else None
         data["media_type"] = media_type or "movie"
+        if data["tmdb_id"] and data["media_type"]:
+            data["directors"] = await tmdb.fetch_directors(data["tmdb_id"], data["media_type"])
 
     with get_db() as conn:
         upsert_item(conn, data)
@@ -475,6 +477,20 @@ async def item_detail(request: Request, item_id: int):
 
 
 # ── Item actions (shared) ─────────────────────────────────────────────────────
+
+@app.post("/items/{item_id}/cancel", response_class=HTMLResponse)
+async def cancel_item(request: Request, item_id: int):
+    with get_db() as conn:
+        item = get_item(conn, item_id)
+        if not item or item["status"] != "pending":
+            return HTMLResponse("", status_code=404)
+        update_item(conn, item_id, {"status": "failed"})
+        item = get_item(conn, item_id)
+    return templates.TemplateResponse(
+        "partials/item_card.html",
+        _card_ctx(request, item, item.get("section", "film")),
+    )
+
 
 @app.post("/items/{item_id}/toggle-watched", response_class=HTMLResponse)
 async def toggle_watched(request: Request, item_id: int):
