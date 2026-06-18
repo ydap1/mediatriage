@@ -6,7 +6,7 @@ from typing import Any
 
 from .config import settings
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 _SORT_MAP = {
     "date_added": "i.date_added DESC",
@@ -56,7 +56,8 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             source_url   TEXT,
             status       TEXT NOT NULL DEFAULT 'to_watch',
             date_added   TEXT NOT NULL DEFAULT (datetime('now')),
-            ai_tags      TEXT DEFAULT '[]'
+            ai_tags         TEXT DEFAULT '[]',
+            original_title  TEXT
         );
 
         CREATE VIRTUAL TABLE IF NOT EXISTS items_fts
@@ -98,6 +99,10 @@ def _migrate_v3_to_v4(conn: sqlite3.Connection) -> None:
     conn.execute("ALTER TABLE items ADD COLUMN directors TEXT DEFAULT '[]'")
 
 
+def _migrate_v4_to_v5(conn: sqlite3.Connection) -> None:
+    conn.execute("ALTER TABLE items ADD COLUMN original_title TEXT")
+
+
 def init_db() -> None:
     Path(settings.db_path).parent.mkdir(parents=True, exist_ok=True)
     with get_db() as conn:
@@ -106,16 +111,22 @@ def init_db() -> None:
             _create_schema(conn)
             _migrate_v2_to_v3(conn)
             _migrate_v3_to_v4(conn)
+            _migrate_v4_to_v5(conn)
         elif version == 1:
             _migrate_v1_to_v2(conn)
             _migrate_v2_to_v3(conn)
             _migrate_v3_to_v4(conn)
+            _migrate_v4_to_v5(conn)
         elif version == 2:
             _migrate_v2_to_v3(conn)
             _migrate_v3_to_v4(conn)
+            _migrate_v4_to_v5(conn)
         elif version == 3:
             _migrate_v3_to_v4(conn)
+            _migrate_v4_to_v5(conn)
         elif version == 4:
+            _migrate_v4_to_v5(conn)
+        elif version == 5:
             pass
         else:
             raise RuntimeError(
@@ -138,13 +149,14 @@ def row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
 def insert_item(conn: sqlite3.Connection, data: dict) -> int:
     cur = conn.execute(
         """INSERT INTO items
-           (title, section, tmdb_id, ol_key, media_type, genres, authors, directors,
+           (title, original_title, section, tmdb_id, ol_key, media_type, genres, authors, directors,
             poster_path, og_image, overview, release_year, source_url, status, ai_tags, watch_providers)
            VALUES
-           (:title, :section, :tmdb_id, :ol_key, :media_type, :genres, :authors, :directors,
+           (:title, :original_title, :section, :tmdb_id, :ol_key, :media_type, :genres, :authors, :directors,
             :poster_path, :og_image, :overview, :release_year, :source_url, :status, :ai_tags, :watch_providers)""",
         {
             "title": data.get("title", ""),
+            "original_title": data.get("original_title"),
             "section": data.get("section", "film"),
             "tmdb_id": data.get("tmdb_id"),
             "ol_key": data.get("ol_key"),
