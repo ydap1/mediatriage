@@ -63,7 +63,7 @@
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
 
   .poster-wrap {
-    position: relative; aspect-ratio: 2/3;
+    position: relative; aspect-ratio: 2/3; max-height: 280px;
     background: var(--surface2); overflow: hidden;
   }
   .poster-wrap img { width:100%; height:100%; object-fit:cover; display:block; }
@@ -87,6 +87,7 @@
   .btn-danger:hover { background:#5a2020; }
 
   .card-body { padding:.5rem .6rem .6rem; }
+  .card-stop { padding:.3rem .6rem .5rem; }
   .card-title {
     font-size:12px; font-weight:600;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -196,12 +197,13 @@
   body.zen footer { display: none; }
   body.zen main { max-width: 740px; }
 
-  .zen-doc-header { display: none; text-align: center; padding: 1.25rem 0 1.75rem; border-bottom: 1px solid #1c1c1c; margin-bottom: 2rem; }
-  body.zen .zen-doc-header { display: block; }
-  .zen-doc-sub   { font-size: 12px; color: #555; margin-top: .3rem; font-style: italic; }
-
   .zen-director { display: none; }
   body.zen .zen-director { display: block; font-size: 11px; color: #555; font-style: italic; margin-top: .15rem; }
+
+  .title-orig { display: none; }
+  body.zen .title-en { display: none; }
+  body.zen .title-orig { display: inline; }
+  body.zen .title-en:only-child { display: inline; }
 
   body.zen .add-bar input {
     background: transparent; border-radius: 0; font-family: inherit; color: #d4c9b8;
@@ -222,23 +224,18 @@
   body.zen .toolbar-right { opacity: 0.3; transition: opacity .2s; }
   body.zen .toolbar-right:hover { opacity: 1; }
 
-  /* Cards → numbered bibliography entries */
+  /* Cards → plain bibliography entries */
   body.zen .item-grid,
-  body.zen .item-list { display: flex; flex-direction: column; gap: 0; counter-reset: zen-counter; }
+  body.zen .item-list { display: flex; flex-direction: column; gap: 0; }
 
   body.zen .item-card {
     background: transparent; border: none; border-bottom: 1px solid #141414;
     border-radius: 0; overflow: visible;
     display: flex; flex-direction: row; align-items: flex-start;
     gap: .65rem; padding: .6rem 0;
-    transition: none; counter-increment: zen-counter;
+    transition: none;
   }
   body.zen .item-card:hover { border-color: #141414; }
-  body.zen .item-card::before {
-    content: "[" counter(zen-counter) "]";
-    color: #444; font-size: 11px; flex-shrink: 0;
-    min-width: 2.4rem; text-align: right; padding-top: .1rem;
-  }
   body.zen .poster-wrap  { display: none; }
   body.zen .card-overlay { display: none; }
 
@@ -256,14 +253,8 @@
     background: transparent; border: none; font-style: italic;
     color: #666; font-size: 12px; text-transform: lowercase; letter-spacing: 0; padding: 0;
   }
-  body.zen .card-genres { display: block; margin-top: .2rem; gap: 0; }
-  body.zen .card-genres .genre-tag {
-    background: transparent; border: none; color: #555;
-    font-size: 11px; padding: 0; font-style: italic; border-radius: 0;
-  }
-  body.zen .card-genres .genre-tag:not(:last-child)::after { content: ','; }
-  body.zen .card-genres .ai-tag { color: #554; }
-  body.zen .card-providers { display: none; }
+  body.zen .card-genres { display: none; }
+  body.zen .card-stop { display: none; }
 
   body.zen .item-watched .card-title { text-decoration: line-through; color: #555; }
   body.zen .item-watched { opacity: 1; border-color: #141414 !important; }
@@ -509,11 +500,6 @@
       Delete all
     </button>
   </div>
-</div>
-
-<div class="zen-doc-header">
-  <div class="zen-doc-sub">{{ 'Reading List' if is_book else 'Watchlist' }}</div>
-  <div class="zen-doc-sub">{{ zen_date }}</div>
 </div>
 
 <div id="grid-container">
