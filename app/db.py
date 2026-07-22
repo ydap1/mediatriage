@@ -108,10 +108,12 @@ def init_db() -> None:
     with get_db() as conn:
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         if version == 0:
+            # Fresh database — _create_schema already inlines `directors` and
+            # `original_title`, so only the migration that adds the one column
+            # NOT in that inline schema (watch_providers) still needs to run;
+            # re-running v3_to_v4/v4_to_v5 here would ALTER-add duplicate columns.
             _create_schema(conn)
             _migrate_v2_to_v3(conn)
-            _migrate_v3_to_v4(conn)
-            _migrate_v4_to_v5(conn)
         elif version == 1:
             _migrate_v1_to_v2(conn)
             _migrate_v2_to_v3(conn)

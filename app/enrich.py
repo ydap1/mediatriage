@@ -10,7 +10,7 @@ import httpx
 from .config import settings
 from .db import get_db, update_item
 from . import tmdb
-from . import googlebooks
+from . import bookresolver
 
 log = logging.getLogger("mediatriage.enrich")
 
@@ -227,9 +227,9 @@ async def _enrich_book(item_id: int, raw_input: str, og_image: str | None, use_a
         clean_title = raw_input
         author = None
 
-    log.info("GB search | title=%r author=%r", clean_title, author)
-    match = await googlebooks.search(clean_title, author)
-    log.info("GB result | %s", match)
+    log.info("Book search | title=%r author=%r", clean_title, author)
+    match = await bookresolver.search(clean_title, author)
+    log.info("Book result | %s", match)
 
     if match:
         ai_tags = await _ai_tags(match["title"], match.get("overview", ""), match.get("genres", []))

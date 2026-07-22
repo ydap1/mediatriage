@@ -31,7 +31,7 @@ from .db import (
     get_db,
 )
 from .enrich import enrich_item, _ai_tags, call_ai, call_ai_multi, ai_log
-from . import tmdb, googlebooks, openlibrary
+from . import tmdb, googlebooks, openlibrary, bookresolver
 from .scraper import scrape_url
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -64,7 +64,6 @@ def _grid_ctx(request, items, total, page, all_genres, filters, sort_by, section
         "ai_mode": request.cookies.get("mt_ai") != "0",
         "zen_mode": request.cookies.get("mt_zen") == "1",
         "view_mode": request.cookies.get("mt_view", "grid"),
-        "book_api": request.cookies.get("mt_book_api", "gb"),
         "zen_date": date.today().strftime("%B %Y"),
     }
 
@@ -293,22 +292,23 @@ async def add_book(request: Request, background_tasks: BackgroundTasks, input: A
     else:
         raw_title = input
 
-    api = request.cookies.get("mt_book_api", "gb")
     fast = _is_fast_mode(request)
     ai = _is_ai_mode(request)
 
     if not fast:
         search_title = raw_title
+        search_author = None
         if ai:
             try:
                 extracted = await call_ai(raw_title, mode="book")
                 search_title = extracted.get("title") or raw_title
+                search_author = extracted.get("author")
             except Exception:
                 pass
-        candidates = await (openlibrary.search_multi if api == "ol" else googlebooks.search_multi)(search_title)
+        candidates = await bookresolver.search_multi(search_title, author=search_author)
         return _search_result_response(request, candidates, input, "book")
 
-    match = await (openlibrary.search if api == "ol" else googlebooks.search)(raw_title)
+    match = await bookresolver.search(raw_title)
     if match:
         ai_tags = await _ai_tags(match["title"], match.get("overview", ""), match.get("genres", [])) if ai else []
         data = {**match, "section": "book", "source_url": input if _is_url(input) else None,
@@ -431,14 +431,6 @@ async def toggle_zen_mode(request: Request):
         response.set_cookie("mt_zen", "1", max_age=365 * 86400, httponly=True, samesite="lax")
     else:
         response.delete_cookie("mt_zen")
-    return response
-
-
-@app.post("/book-api", response_class=HTMLResponse)
-async def toggle_book_api(request: Request):
-    new_api = "ol" if request.cookies.get("mt_book_api", "gb") == "gb" else "gb"
-    response = HTMLResponse("")
-    response.set_cookie("mt_book_api", new_api, max_age=365 * 86400, httponly=True, samesite="lax")
     return response
 
 

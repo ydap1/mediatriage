@@ -38,10 +38,10 @@
         </div>
         <div class="candidate-info">
           <div class="candidate-title">{{ item.title }}</div>
+          {% if item.authors %}<div class="candidate-authors">{{ item.authors | join(', ') }}</div>{% endif %}
           <div class="candidate-meta">
-            {% if item.release_year %}{{ item.release_year }}{% endif %}
-            {% if item.media_type and item.media_type != 'book' %} · {{ item.media_type }}{% endif %}
-            {% if item.authors %} · {{ item.authors | join(', ') }}{% endif %}
+            {% if item.release_year %}<span>{{ item.release_year }}</span>{% endif %}
+            {% if item.media_type and item.media_type != 'book' %}<span>{{ item.media_type }}</span>{% endif %}
           </div>
         </div>
       </button>

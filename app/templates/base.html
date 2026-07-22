@@ -23,6 +23,9 @@
       --pending: #4a4a1a;
       --failed: #4a1a1a;
       --radius: 6px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.35);
+      --shadow: 0 2px 4px rgba(0,0,0,.3), 0 12px 28px rgba(0,0,0,.4);
+      --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px rgba(232,93,4,.55);
     }
 
     body {
@@ -37,9 +40,13 @@
     a { color: var(--accent); text-decoration: none; }
     a:hover { color: var(--accent-hover); }
 
+    :focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: 4px; }
+    body.zen :focus-visible { box-shadow: 0 0 0 2px #080808, 0 0 0 4px rgba(212,201,184,.4); }
+
     header {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
       padding: 0 1.5rem;
       display: flex;
       align-items: center;
@@ -48,6 +55,8 @@
       position: sticky;
       top: 0;
       z-index: 100;
+      flex-wrap: wrap;
+      gap: .5rem;
     }
 
     .header-left { display: flex; align-items: center; gap: 1.5rem; }
@@ -120,6 +129,27 @@
       border-top: 1px solid var(--border);
       margin-top: 2rem;
     }
+
+    @media (max-width: 640px) {
+      header { padding: 0 .85rem; height: auto; min-height: 52px; }
+      .header-left { gap: .85rem; }
+      main { padding: .85rem; }
+    }
+
+    /* Custom confirm dialog (replaces native hx-confirm popups) */
+    #confirm-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7);
+      display: none; align-items: center; justify-content: center;
+      z-index: 500; padding: 1rem;
+    }
+    #confirm-modal.confirm-open { display: flex; }
+    .confirm-box {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 1.25rem; max-width: 360px; width: 100%; box-shadow: var(--shadow);
+    }
+    .confirm-text { font-size: 14px; margin-bottom: 1.1rem; line-height: 1.5; }
+    .confirm-actions { display: flex; justify-content: flex-end; gap: .5rem; }
+    body.zen .confirm-box { font-family: 'Palatino Linotype', Palatino, Georgia, serif; background: #101010; border-color: #222; }
   </style>
   {% block head %}{% endblock %}
   <style>
@@ -154,7 +184,49 @@
       if (e.key === 'Escape') {
         const m = document.getElementById('detail-modal');
         if (m) m.innerHTML = '';
+        closeConfirm(false);
       }
+    });
+
+    let _confirmResolve = null;
+
+    function ensureConfirmModal() {
+      let el = document.getElementById('confirm-modal');
+      if (el) return el;
+      el = document.createElement('div');
+      el.id = 'confirm-modal';
+      el.innerHTML =
+        '<div class="confirm-box">' +
+          '<p class="confirm-text"></p>' +
+          '<div class="confirm-actions">' +
+            '<button type="button" class="btn btn-sm" data-act="cancel">Cancel</button>' +
+            '<button type="button" class="btn btn-sm btn-danger" data-act="ok">Confirm</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(el);
+      el.addEventListener('click', e => {
+        if (e.target === el || e.target.dataset.act === 'cancel') closeConfirm(false);
+        if (e.target.dataset.act === 'ok') closeConfirm(true);
+      });
+      return el;
+    }
+
+    function closeConfirm(result) {
+      const el = document.getElementById('confirm-modal');
+      if (el) el.classList.remove('confirm-open');
+      if (_confirmResolve) { const r = _confirmResolve; _confirmResolve = null; r(result); }
+    }
+
+    document.body.addEventListener('htmx:confirm', function (e) {
+      if (!e.detail.question) return;
+      e.preventDefault();
+      const el = ensureConfirmModal();
+      el.querySelector('.confirm-text').textContent = e.detail.question;
+      el.classList.add('confirm-open');
+      el.querySelector('[data-act="ok"]').focus();
+      new Promise(resolve => { _confirmResolve = resolve; }).then(ok => {
+        if (ok) e.detail.issueRequest(true);
+      });
     });
   </script>
   <footer>

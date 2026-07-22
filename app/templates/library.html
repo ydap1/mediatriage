@@ -15,7 +15,7 @@
     margin-bottom: 1.25rem; align-items: center;
   }
   .toolbar-left  { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; flex: 1; }
-  .toolbar-right { display: flex; gap: .4rem; align-items: center; }
+  .toolbar-right { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
 
   .toggle-group {
     display: flex; border: 1px solid var(--border);
@@ -53,14 +53,20 @@
   .item-card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); overflow: hidden;
-    transition: border-color .15s;
+    transition: border-color .15s, box-shadow .15s, transform .15s;
   }
-  .item-card:hover { border-color: #444; }
+  .item-card:hover { border-color: #444; box-shadow: var(--shadow-sm); transform: translateY(-1px); }
   .item-watched { border-color: var(--watched) !important; opacity: .75; }
-  .item-pending { border-color: #555; animation: pulse 2s infinite; }
+  .item-pending { border-color: #555; }
   .item-failed  { border-color: #5a2020; }
 
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+  @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+  .item-pending .poster-wrap::after,
+  .item-row.item-pending .row-thumb::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+    animation: shimmer 1.6s infinite;
+  }
 
   .poster-wrap {
     position: relative; aspect-ratio: 2/3; max-height: 280px;
@@ -138,6 +144,7 @@
   .detail-card {
     position:relative;
     background:var(--surface); border:1px solid var(--border);
+    box-shadow: var(--shadow);
     border-radius:10px; width:100%; max-width:720px;
     display:grid; grid-template-columns:200px 1fr;
     overflow:hidden; max-height:90vh;
@@ -185,6 +192,15 @@
   @media (max-width:560px) {
     .detail-card { grid-template-columns:1fr; }
     .detail-poster { max-height:240px; }
+  }
+
+  @media (max-width: 640px) {
+    .add-bar { flex-wrap: wrap; }
+    .add-bar input { min-width: 100%; }
+    .toolbar-left, .toolbar-right { width: 100%; }
+    .toolbar-right { justify-content: flex-start; }
+    .item-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: .75rem; }
+    .candidate-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
   }
 
   /* ── Zen mode ── */
@@ -235,7 +251,7 @@
     gap: .65rem; padding: .6rem 0;
     transition: none;
   }
-  body.zen .item-card:hover { border-color: #141414; }
+  body.zen .item-card:hover { border-color: #141414; box-shadow: none; transform: none; }
   body.zen .poster-wrap  { display: none; }
   body.zen .card-overlay { display: none; }
 
@@ -325,7 +341,15 @@
 
   /* Book covers — show full image without cropping */
   .poster-wrap-book img { object-fit: contain; }
-  .detail-poster-book img { object-fit: contain; }
+  .detail-poster-book {
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 1.5rem 1rem;
+  }
+  .detail-poster-book img {
+    width: auto; max-width: 100%; height: auto; max-height: 380px;
+    object-fit: contain; border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.45);
+  }
+  .detail-poster-book .poster-placeholder { min-height: 200px !important; }
 
   /* List view */
   .item-list { display: flex; flex-direction: column; gap: 2px; }
@@ -339,9 +363,10 @@
   }
   .item-row:hover { border-color: #444; }
   .item-row.item-watched { border-color: var(--watched) !important; opacity: .75; }
-  .item-row.item-pending { border-color: #555; animation: pulse 2s infinite; }
+  .item-row.item-pending { border-color: #555; }
   .item-row.item-failed  { border-color: #5a2020; }
   .row-thumb {
+    position: relative;
     width: 44px; height: 66px; border-radius: 3px;
     overflow: hidden; background: var(--surface2); flex-shrink: 0;
   }
@@ -372,9 +397,9 @@
     background: var(--surface2); border: 1px solid var(--border);
     border-radius: var(--radius); overflow: hidden;
     cursor: pointer; text-align: left; padding: 0; width: 100%;
-    color: var(--text); transition: border-color .15s;
+    color: var(--text); transition: border-color .15s, box-shadow .15s, transform .15s;
   }
-  .candidate-card:hover { border-color: var(--accent); }
+  .candidate-card:hover { border-color: var(--accent); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
   .candidate-poster {
     aspect-ratio: 2/3; background: var(--surface); overflow: hidden;
   }
@@ -387,13 +412,18 @@
     padding: .5rem; font-size: 11px; color: var(--text-muted);
     text-align: center; word-break: break-word;
   }
-  .candidate-info { padding: .4rem .5rem .5rem; }
+  .candidate-info { padding: .45rem .55rem .55rem; }
   .candidate-title {
-    font-size: 11px; font-weight: 600; line-height: 1.3; margin-bottom: .2rem;
+    font-size: 12px; font-weight: 700; line-height: 1.3; margin-bottom: .2rem;
     overflow: hidden; display: -webkit-box;
     -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   }
-  .candidate-meta { font-size: 10px; color: var(--text-muted); }
+  .candidate-authors {
+    font-size: 11px; color: var(--text); opacity: .85; margin-bottom: .2rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .candidate-meta { display: flex; gap: .35rem; font-size: 10px; color: var(--text-muted); }
+  .candidate-meta span:not(:last-child)::after { content: '·'; margin-left: .35rem; }
   .search-no-results {
     color: var(--text-muted); font-size: 13px;
     padding: 2rem 0; text-align: center;
@@ -415,7 +445,7 @@
   <button class="btn {{ 'btn-accent-book' if is_book else 'btn-accent' }}" type="submit">Add</button>
 </form>
 <p id="add-indicator" class="htmx-indicator" style="font-size:12px;color:var(--text-muted);margin:.3rem 0 0">
-  {{ 'Searching Google Books…' if is_book else 'Searching TMDb…' }}
+  {{ 'Searching Open Library & Google Books…' if is_book else 'Searching TMDb…' }}
 </p>
 
 <div class="toolbar">
@@ -481,15 +511,6 @@
         title="{{ 'Switch to list view' if view_mode == 'grid' else 'Switch to grid view' }}">
         {{ '≡' if view_mode == 'grid' else '⊞' }}</button>
     </div>
-    {% if is_book %}
-    <button class="btn btn-sm"
-      hx-post="/book-api" hx-swap="none"
-      hx-on::after-request="location.reload()"
-      style="font-size:11px"
-      title="Switch to {{ 'Open Library' if book_api == 'gb' else 'Google Books' }}">
-      {{ 'Google Books' if book_api == 'gb' else 'Open Library' }}
-    </button>
-    {% endif %}
     <span class="toolbar-sep"></span>
     <a class="util-link" href="/export?format=csv&section={{ export_section }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}">CSV</a>
     <a class="util-link" href="/export?format=json&section={{ export_section }}&status={{ filters.status }}&media_type={{ filters.media_type }}&genre={{ filters.genre }}&q={{ filters.q }}">JSON</a>
