@@ -43,7 +43,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 templates = Jinja2Templates(directory="app/templates")
 templates.env.filters["urlencode"] = lambda s: urllib.parse.quote_plus(s or "")
-templates.env.filters["tojson"] = lambda v: json.dumps(v, ensure_ascii=False)
+templates.env.filters["tojson"] = lambda v, indent=None: json.dumps(v, ensure_ascii=False, indent=indent)
 
 PAGE_SIZE = 24
 
@@ -95,7 +95,7 @@ async def startup():
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request, "error": ""})
+    return templates.TemplateResponse(request, "login.html", {"error": ""})
 
 
 @app.post("/login")
@@ -103,8 +103,9 @@ async def login_page(request: Request):
 async def login(request: Request, password: Annotated[str, Form()]):
     if password != settings.app_password:
         return templates.TemplateResponse(
+            request,
             "login.html",
-            {"request": request, "error": "Incorrect password."},
+            {"error": "Incorrect password."},
             status_code=401,
         )
     response = RedirectResponse("/", status_code=302)
@@ -146,7 +147,7 @@ async def _render_grid(request: Request, section: str) -> HTMLResponse:
         items, total = list_items(conn, section=section, page=1, page_size=PAGE_SIZE)
         all_genres = get_all_genres(conn, section=section)
     ctx = _grid_ctx(request, items, total, 1, all_genres, _empty_filters(), "date_added", section)
-    response = templates.TemplateResponse("partials/item_grid.html", ctx)
+    response = templates.TemplateResponse(request, "partials/item_grid.html", ctx)
     response.headers["HX-Retarget"] = "#grid-container"
     response.headers["HX-Reswap"] = "innerHTML"
     return response
@@ -154,8 +155,9 @@ async def _render_grid(request: Request, section: str) -> HTMLResponse:
 
 def _search_result_response(request: Request, candidates: list, query: str, section: str) -> HTMLResponse:
     response = templates.TemplateResponse(
+        request,
         "partials/search_results.html",
-        {"request": request, "candidates": candidates, "query": query,
+        {"candidates": candidates, "query": query,
          "section": section, "image_base": settings.tmdb_image_base},
     )
     response.headers["HX-Retarget"] = "#grid-container"
@@ -189,8 +191,8 @@ async def film_library(
         all_genres = get_all_genres(conn, section=section)
     ctx = _grid_ctx(request, items, total, page, all_genres, filters, sort_by, section)
     if request.headers.get("HX-Request"):
-        return templates.TemplateResponse("partials/item_grid.html", ctx)
-    return templates.TemplateResponse("library.html", ctx)
+        return templates.TemplateResponse(request, "partials/item_grid.html", ctx)
+    return templates.TemplateResponse(request, "library.html", ctx)
 
 
 @app.post("/add", response_class=HTMLResponse)
@@ -273,8 +275,8 @@ async def books_library(
         all_genres = get_all_genres(conn, section=section)
     ctx = _grid_ctx(request, items, total, page, all_genres, filters, sort_by, section)
     if request.headers.get("HX-Request"):
-        return templates.TemplateResponse("partials/item_grid.html", ctx)
-    return templates.TemplateResponse("library.html", ctx)
+        return templates.TemplateResponse(request, "partials/item_grid.html", ctx)
+    return templates.TemplateResponse(request, "library.html", ctx)
 
 
 @app.post("/books/add", response_class=HTMLResponse)
@@ -462,8 +464,9 @@ async def item_detail(request: Request, item_id: int):
         details = details or item
 
     return templates.TemplateResponse(
+        request,
         "partials/item_detail.html",
-        {"request": request, "item": item, "details": details, "section": section,
+        {"item": item, "details": details, "section": section,
          "image_base": settings.tmdb_image_base},
     )
 
@@ -479,6 +482,7 @@ async def cancel_item(request: Request, item_id: int):
         update_item(conn, item_id, {"status": "failed"})
         item = get_item(conn, item_id)
     return templates.TemplateResponse(
+        request,
         "partials/item_card.html",
         _card_ctx(request, item, item.get("section", "film")),
     )
@@ -494,6 +498,7 @@ async def toggle_watched(request: Request, item_id: int):
         update_item(conn, item_id, {"status": new_status})
         item = get_item(conn, item_id)
     return templates.TemplateResponse(
+        request,
         "partials/item_card.html",
         _card_ctx(request, item, item.get("section", "film")),
     )
@@ -515,6 +520,7 @@ async def item_status(request: Request, item_id: int):
     if item["status"] == "pending":
         return Response(status_code=204)
     return templates.TemplateResponse(
+        request,
         "partials/item_card.html",
         _card_ctx(request, item, item.get("section", "film")),
     )
@@ -531,6 +537,7 @@ async def edit_item(
         update_item(conn, item_id, {"title": title, "genres": genre_list})
         item = get_item(conn, item_id)
     return templates.TemplateResponse(
+        request,
         "partials/item_card.html",
         _card_ctx(request, item, item.get("section", "film")),
     )
@@ -551,8 +558,9 @@ async def remove_all_items(request: Request, section: str = "film"):
 async def ai_log_entries_compact(request: Request):
     entries = list(reversed(ai_log))
     return templates.TemplateResponse(
+        request,
         "partials/ai_log_compact.html",
-        {"request": request, "entries": entries},
+        {"entries": entries},
     )
 
 
@@ -561,12 +569,14 @@ async def view_ai_log(request: Request):
     entries = list(reversed(ai_log))
     if request.headers.get("HX-Request"):
         return templates.TemplateResponse(
+            request,
             "partials/ai_log_entries.html",
-            {"request": request, "entries": entries},
+            {"entries": entries},
         )
     return templates.TemplateResponse(
+        request,
         "ai_log.html",
-        {"request": request, "entries": entries, "section": ""},
+        {"entries": entries, "section": ""},
     )
 
 
